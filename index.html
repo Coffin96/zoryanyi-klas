@@ -10,7 +10,21 @@
   <script src="vendor/qrcode.min.js"></script>
 </head>
 <body>
-  <div id="app"></div>
+  <div id="app">
+    <div style="min-height: 85vh; display: flex; flex-direction: column; align-items: center; justify-content: center; text-align: center; padding: 24px;">
+      <div style="font-size: 56px; color: #ffc53d; margin-bottom: 12px;">✦</div>
+      <h1 style="font-size: 24px; margin: 0 0 8px 0; color: #f2f4ff;">Зоряний клас</h1>
+      <p style="color: #a9b0e0; font-size: 15px; margin: 0;">Завантаження застосунку...</p>
+    </div>
+  </div>
+  <script>
+    window.addEventListener('error', function(e) {
+      var app = document.getElementById('app');
+      if (app && app.innerHTML.includes('Завантаження застосунку')) {
+        app.innerHTML = '<div style="min-height: 85vh; display: flex; flex-direction: column; align-items: center; justify-content: center; text-align: center; padding: 24px; color: #f2f4ff;"><div style="font-size: 48px; color: #ff6b6b; margin-bottom: 12px;">⚠️</div><h2 style="margin: 0 0 8px 0;">Помилка завантаження</h2><p style="color: #ff6b6b; max-width: 320px; font-size: 14px; margin-bottom: 20px;">' + (e.message || 'Не вдалося завантажити модулі') + '</p><button onclick="location.reload()" style="background: #8b7bff; color: white; border: none; padding: 12px 24px; border-radius: 12px; font-weight: bold; cursor: pointer;">Спробувати знову</button></div>';
+      }
+    });
+  </script>
   <script type="module" src="src/app.js"></script>
 </body>
 </html>

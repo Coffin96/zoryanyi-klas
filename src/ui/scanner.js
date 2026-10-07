@@ -11,8 +11,8 @@ export function renderScanner(root) {
   root.innerHTML = `
     <div class="container">
       <div class="top-bar">
-        <h2 style="margin:0;">Сканер</h2>
-        <button id="btn-logout" class="danger">Вийти</button>
+        <h2 style="margin:0;">Сканер QR-кодів</h2>
+        <button id="btn-to-students-top" class="primary" style="padding: 6px 12px; font-size: 13px;">👥 Учні</button>
       </div>
 
       <div class="scanner-container">
@@ -20,23 +20,23 @@ export function renderScanner(root) {
         <div class="scanner-overlay"></div>
       </div>
       
-      <p id="scanner-msg" class="text-center text-muted">Наведи на QR учня</p>
+      <p id="scanner-msg" class="text-center text-muted" style="margin: 8px 0 16px 0;">Наведи камеру на QR-картку або телефон учня</p>
       
-      <div class="flex flex-col gap-md" style="margin-top: var(--spacing-lg);">
-        <button id="btn-list" class="primary">Вибрати учня зі списку</button>
+      <div class="flex flex-col gap-sm">
+        <button id="btn-list" class="primary" style="width: 100%; padding: 12px;">👥 Вибрати учня зі списку</button>
+        <button id="btn-quick-create" style="width: 100%; padding: 12px; background: var(--surface); border: 1px solid rgba(255,255,255,0.1);">➕ Створити учня</button>
       </div>
     </div>
   `;
 
-  document.getElementById('btn-logout').addEventListener('click', () => {
-    stopScanner();
-    logoutTeacher();
-  });
-
-  document.getElementById('btn-list').addEventListener('click', () => {
+  const goToList = () => {
     stopScanner();
     navigate('student-list');
-  });
+  };
+
+  document.getElementById('btn-to-students-top').addEventListener('click', goToList);
+  document.getElementById('btn-list').addEventListener('click', goToList);
+  document.getElementById('btn-quick-create').addEventListener('click', goToList);
 
   startScanner();
 }

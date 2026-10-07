@@ -3,11 +3,13 @@ import { initStudentApp } from './student/app.js';
 if ('serviceWorker' in navigator) {
   window.addEventListener('load', () => {
     navigator.serviceWorker.register('./sw.js').catch(err => {
-      console.error('SW registration failed:', err);
+      console.warn('SW registration warning:', err);
     });
   });
 }
 
-document.addEventListener('DOMContentLoaded', () => {
+if (document.readyState === 'loading') {
+  document.addEventListener('DOMContentLoaded', initStudentApp);
+} else {
   initStudentApp();
-});
+}

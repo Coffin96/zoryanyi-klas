@@ -1,7 +1,7 @@
-import { onTeacherStateChanged } from '../data/firebase.js';
+import { onTeacherStateChanged, logoutTeacher } from '../data/firebase.js';
 import { listenConfig, listenStock } from '../data/repo.js';
 import { renderAuth } from './auth.js';
-import { renderScanner } from './scanner.js';
+import { renderScanner, stopScanner } from './scanner.js';
 import { renderStudentPanel } from './student-panel.js';
 import { renderStudentList } from './student-list.js';
 import { renderAdmin } from './admin.js';
@@ -13,7 +13,7 @@ export const appState = {
   user: null,
   config: null,
   stock: null,
-  view: 'auth', // 'auth', 'scanner', 'student-panel', 'student-list'
+  view: 'auth', // 'auth', 'scanner', 'student-panel', 'student-list', 'admin'
   currentStudent: null, // { uuid, alias }
   toastTimeout: null
 };
@@ -22,14 +22,16 @@ export function initApp() {
   onTeacherStateChanged(user => {
     appState.user = user;
     if (user) {
-      appState.view = 'scanner';
+      if (appState.view === 'auth') {
+        appState.view = 'scanner';
+      }
       listenConfig(
         c => { appState.config = c; render(); },
-        e => console.error(e)
+        e => { console.error('Config listen error:', e); render(); }
       );
       listenStock(
         s => { appState.stock = s; render(); },
-        e => console.error(e)
+        e => console.error('Stock listen error:', e)
       );
     } else {
       appState.view = 'auth';
@@ -39,6 +41,10 @@ export function initApp() {
 }
 
 export function navigate(view, params = {}) {
+  // If moving away from scanner, cleanly release camera
+  if (appState.view === 'scanner' && view !== 'scanner') {
+    stopScanner();
+  }
   appState.view = view;
   if (view === 'student-panel') {
     appState.currentStudent = params.student;
@@ -53,6 +59,7 @@ export function showToast(msg, action = null) {
     toast.id = 'toast';
     toast.className = 'receipt-toast flex justify-between items-center gap-md';
     toast.setAttribute('aria-live', 'polite');
+    toast.style.bottom = '75px';
     document.body.appendChild(toast);
   }
   
@@ -82,9 +89,14 @@ function render() {
   const root = document.getElementById('app');
   if (!root) return;
 
+  // 1. Auth view
   if (appState.view === 'auth') {
     renderAuth(root);
-  } else if (!appState.config) {
+    return;
+  }
+
+  // 2. Uninitialized database state
+  if (!appState.config) {
     root.innerHTML = `
       <div class="container text-center flex flex-col items-center gap-md" style="padding-top: var(--spacing-xl);">
         <h2>Завантаження конфігурації...</h2>
@@ -116,13 +128,62 @@ function render() {
         }
       });
     }
-  } else if (appState.view === 'scanner') {
-    renderScanner(root);
+    return;
+  }
+
+  // 3. Main teacher layout with fixed bottom navigation
+  root.innerHTML = `
+    <div id="teacher-view-container" style="padding-bottom: 75px;"></div>
+    
+    <nav style="position:fixed; bottom:0; left:0; right:0; background:var(--surface); display:flex; justify-content:space-around; padding:8px 0; border-top: 1px solid rgba(255,255,255,0.08); z-index:100; box-shadow: 0 -4px 12px rgba(0,0,0,0.2);">
+      <button class="nav-teacher-btn ${appState.view === 'scanner' ? 'active' : ''}" data-view="scanner" style="flex:1; background:transparent; border:none; display:flex; flex-direction:column; align-items:center; cursor:pointer;">
+        <span style="font-size:20px; line-height: 1;">📷</span>
+        <span style="font-size:11px; margin-top: 4px;">Сканер</span>
+      </button>
+      <button class="nav-teacher-btn ${appState.view === 'student-list' ? 'active' : ''}" data-view="student-list" style="flex:1; background:transparent; border:none; display:flex; flex-direction:column; align-items:center; cursor:pointer;">
+        <span style="font-size:20px; line-height: 1;">👥</span>
+        <span style="font-size:11px; margin-top: 4px;">Учні</span>
+      </button>
+      <button class="nav-teacher-btn ${appState.view === 'admin' ? 'active' : ''}" data-view="admin" style="flex:1; background:transparent; border:none; display:flex; flex-direction:column; align-items:center; cursor:pointer;">
+        <span style="font-size:20px; line-height: 1;">⚙️</span>
+        <span style="font-size:11px; margin-top: 4px;">Адмінка</span>
+      </button>
+      <button id="btn-global-logout" style="flex:1; background:transparent; border:none; display:flex; flex-direction:column; align-items:center; cursor:pointer; color: var(--danger);">
+        <span style="font-size:20px; line-height: 1;">🚪</span>
+        <span style="font-size:11px; margin-top: 4px;">Вийти</span>
+      </button>
+    </nav>
+  `;
+
+  document.querySelectorAll('.nav-teacher-btn').forEach(btn => {
+    btn.addEventListener('click', () => navigate(btn.dataset.view));
+    if (btn.classList.contains('active')) {
+      btn.style.color = 'var(--star)';
+      btn.style.fontWeight = 'bold';
+    } else {
+      btn.style.color = 'var(--muted)';
+      btn.style.fontWeight = 'normal';
+    }
+  });
+
+  const logoutBtn = document.getElementById('btn-global-logout');
+  if (logoutBtn) {
+    logoutBtn.addEventListener('click', () => {
+      if (confirm('Вийти з облікового запису вчителя?')) {
+        stopScanner();
+        logoutTeacher();
+      }
+    });
+  }
+
+  const container = document.getElementById('teacher-view-container');
+  if (appState.view === 'scanner') {
+    renderScanner(container);
   } else if (appState.view === 'student-panel') {
-    renderStudentPanel(root);
+    renderStudentPanel(container);
   } else if (appState.view === 'student-list') {
-    renderStudentList(root);
+    renderStudentList(container);
   } else if (appState.view === 'admin') {
-    renderAdmin(root);
+    renderAdmin(container);
   }
 }

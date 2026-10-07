@@ -1,9 +1,11 @@
-const CACHE_NAME = 'zoryanyi-klas-v1';
+const CACHE_NAME = 'zoryanyi-klas-v3';
 const ASSETS = [
   './',
   './index.html',
   './teacher/index.html',
   './manifest.json',
+  './icons/icon-192x192.png',
+  './icons/icon-512x512.png',
   './styles/base.css',
   './styles/tokens.css',
   './vendor/jsQR.min.js',
@@ -14,9 +16,28 @@ const ASSETS = [
   './src/data/firebase-config.js',
   './src/data/repo.js',
   './src/data/tx.js',
+  './src/data/names-db.js',
+  './src/data/default-config.js',
   './src/engine/time.js',
   './src/engine/economy.js',
-  './src/engine/qr-protocol.js'
+  './src/engine/qr-protocol.js',
+  './src/engine/quests.js',
+  './src/engine/redeem.js',
+  './src/engine/undo.js',
+  './src/engine/utils.js',
+  './src/i18n/uk.js',
+  './src/student/app.js',
+  './src/student/home.js',
+  './src/student/qr.js',
+  './src/student/shop.js',
+  './src/student/quests.js',
+  './src/student/history.js',
+  './src/ui/app.js',
+  './src/ui/auth.js',
+  './src/ui/scanner.js',
+  './src/ui/student-panel.js',
+  './src/ui/student-list.js',
+  './src/ui/admin.js'
 ];
 
 self.addEventListener('install', (event) => {
@@ -51,33 +72,32 @@ self.addEventListener('activate', (event) => {
 
 self.addEventListener('fetch', (event) => {
   if (event.request.method !== 'GET') return;
-  // Ignore firestore API calls & google APIs
+  // Never intercept Firestore API calls & Google Auth
   if (event.request.url.includes('firestore.googleapis.com') || 
       event.request.url.includes('identitytoolkit.googleapis.com') ||
       event.request.url.includes('gstatic.com')) {
     return;
   }
 
+  // Network-first strategy: always fetch fresh from network, fallback to cache if offline
   event.respondWith(
-    caches.match(event.request).then((cached) => {
-      if (cached) {
-        return cached;
-      }
-      return fetch(event.request).then((response) => {
-        if (!response || response.status !== 200 || response.type !== 'basic') {
-          return response;
+    fetch(event.request)
+      .then((networkResponse) => {
+        if (networkResponse && networkResponse.status === 200 && networkResponse.type === 'basic') {
+          const responseToCache = networkResponse.clone();
+          caches.open(CACHE_NAME).then((cache) => {
+            cache.put(event.request, responseToCache);
+          });
         }
-        const responseToCache = response.clone();
-        caches.open(CACHE_NAME).then((cache) => {
-          cache.put(event.request, responseToCache);
+        return networkResponse;
+      })
+      .catch(() => {
+        return caches.match(event.request).then((cachedResponse) => {
+          if (cachedResponse) return cachedResponse;
+          if (event.request.mode === 'navigate') {
+            return caches.match('./index.html');
+          }
         });
-        return response;
-      }).catch(() => {
-        // Fallback for navigation requests
-        if (event.request.mode === 'navigate') {
-          return caches.match('./index.html');
-        }
-      });
-    })
+      })
   );
 });

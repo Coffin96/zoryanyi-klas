@@ -1,5 +1,7 @@
 import { initApp } from './ui/app.js';
 
-document.addEventListener('DOMContentLoaded', () => {
+if (document.readyState === 'loading') {
+  document.addEventListener('DOMContentLoaded', initApp);
+} else {
   initApp();
-});
+}

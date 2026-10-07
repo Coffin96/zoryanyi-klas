@@ -14,28 +14,28 @@
 
 ## 4. План за віхами M0–M9
 
-**M0. Каркас**
-*Файли:* `package.json`, `.gitignore`, `index.html`, `teacher.html`, `styles/main.css`, `styles/theme.css`, `src/app.js`, `src/teacher.js`, `src/i18n/uk.js`, `src/utils/plural.js`, `src/components/star-icon.js`
+**M0. Каркас** [✓ Завершено]
+*Файли:* `package.json`, `.gitignore`, `index.html`, `teacher/index.html`, `styles/base.css`, `styles/tokens.css`, `src/app.js`, `src/teacher.js`, `src/i18n/uk.js`, `src/utils/plural.js`
 *Опис:* Базовий сетап, роутинг, теми, підтримка тестів.
 
-**M1. Рушій (чиста логіка)**
-*Файли:* `src/engine/time.js`, `src/engine/credit.js`, `src/engine/redeem.js`, `src/engine/quests.js`, `src/engine/levels.js`, `src/engine/config.js`, `src/engine/budget.js`, `src/qr/protocol.js`, `tests/engine.test.js`, `tests/qr.test.js`
+**M1. Рушій (чиста логіка)** [✓ Завершено]
+*Файли:* `src/engine/time.js`, `src/engine/economy.js`, `src/engine/quests.js`, `src/engine/redeem.js`, `src/engine/undo.js`, `src/engine/qr-protocol.js`, `tests/engine.test.js`, `tests/qr-protocol.test.js`
 *Опис:* Чисті функції розрахунку економіки, квестів, валідації конфігурації та парсингу QR.
 
-**M2. Дані та Rules**
-*Файли:* `src/data/firebase.js`, `src/data/repo.js`, `src/data/tx.js`, `firestore.rules`, `firebase/seed/published.json`, `tests/rules.test.js`, `tests/tx.test.js`
+**M2. Дані та Rules** [✓ Завершено]
+*Файли:* `src/data/firebase.js`, `src/data/firebase-config.js`, `src/data/repo.js`, `src/data/tx.js`, `firestore.rules`
 *Опис:* Інтеграція з Firebase, Security Rules, транзакційні операції нарахування/витрат.
 
-**M3. Вчитель MVP**
-*Файли:* `src/ui/teacher/login.js`, `src/ui/teacher/students.js`, `src/ui/teacher/scanner.js`, `src/ui/teacher/panel.js`, `src/ui/teacher/print.js`, `src/qr/scanner.js`, `vendor/jsQR.js`, `styles/print.css`
-*Опис:* Вхід, список учнів, сканер через вебкамеру, екран швидкої видачі й скасування.
+**M3. Вчитель MVP** [✓ Завершено, оновлено навігацію]
+*Файли:* `src/ui/auth.js`, `src/ui/student-list.js`, `src/ui/scanner.js`, `src/ui/student-panel.js`, `src/ui/admin.js`, `vendor/jsQR.min.js`
+*Опис:* Вхід, список учнів з миттєвим створенням учня та модалкою QR для показу з екрана, сканер через вебкамеру, екран швидкої видачі й скасування, фіксована навігаційна панель.
 
-**M4. Учень MVP (PWA)**
-*Файли:* `src/ui/student/home.js`, `src/ui/student/qr.js`, `src/ui/student/shop.js`, `src/ui/student/history.js`, `src/qr/render.js`, `vendor/qrcode-generator.js`, `manifest.json`, `sw.js`
-*Опис:* Головний екран учня, генерація QR на екрані, перегляд балансу, PWA офлайн-оболонка.
+**M4. Учень MVP (PWA)** [✓ Завершено, виправлено відображення]
+*Файли:* `src/student/app.js`, `src/student/home.js`, `src/student/qr.js`, `src/student/shop.js`, `src/student/quests.js`, `src/student/history.js`, `manifest.json`, `sw.js`, `icons/icon-192x192.png`, `icons/icon-512x512.png`
+*Опис:* Головний екран учня, генерація QR на екрані, перегляд балансу, PWA офлайн-оболонка v3, захист від порожнього чорного екрана, надійний парсинг UUID з URL і хешу.
 
-**M5. Квести та рівні**
-*Файли:* `src/ui/teacher/quests.js`, `src/ui/student/quests.js`, `src/ui/components/level-bar.js`
+**M5. Квести та рівні** [У процесі]
+*Файли:* `src/ui/student-panel.js`, `src/student/quests.js`, `src/engine/quests.js`
 *Опис:* Інтерфейс для прогресу квестів (учень) та ручної видачі (вчитель).
 
 **M6. Адмінпанель**

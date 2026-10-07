@@ -7,27 +7,35 @@ export const encodeR = (uuid, id, item, qty, ymd) => `${V}|R|${uuid}|${id}|${ite
 
 export function generateQRUrl(params) {
   const uuid = typeof params === 'string' ? params : params.uuid;
-  const baseUrl = window.location.origin + window.location.pathname.replace(/\/teacher\/.*$/, '/').replace(/\/index\.html$/, '/');
-  return `${baseUrl}#/p/${uuid}`;
+  let path = window.location.pathname.replace(/\/teacher(\/.*)?$/i, '/').replace(/\/index\.html$/i, '/');
+  if (!path.endsWith('/')) path += '/';
+  return `${window.location.origin}${path}?u=${uuid}#/p/${uuid}`;
 }
 
 export function decode(text) {
   const t = String(text).trim();
   
-  // Direct UUID match or URL match
+  // Direct UUID match
   if (UUID.test(t)) {
-    return { type: 'P', uuid: t };
+    return { type: 'P', uuid: t.toLowerCase() };
   }
 
+  // Card URL with hash or param
   const urlMatch = t.match(URL_CARD);
   if (urlMatch && UUID.test(urlMatch[2])) {
-    return { type: 'P', uuid: urlMatch[2] };
+    return { type: 'P', uuid: urlMatch[2].toLowerCase() };
+  }
+
+  // Any URL containing a valid UUID
+  const anyUuidMatch = t.match(/([0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12})/i);
+  if (t.includes('http') && anyUuidMatch) {
+    return { type: 'P', uuid: anyUuidMatch[1].toLowerCase() };
   }
 
   // Legacy zk:student:<uuid>
   if (t.startsWith('zk:student:')) {
     const rawUuid = t.replace('zk:student:', '');
-    if (UUID.test(rawUuid)) return { type: 'P', uuid: rawUuid };
+    if (UUID.test(rawUuid)) return { type: 'P', uuid: rawUuid.toLowerCase() };
   }
 
   const parts = t.split('|');
