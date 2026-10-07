@@ -5,6 +5,9 @@ import { renderScanner } from './scanner.js';
 import { renderStudentPanel } from './student-panel.js';
 import { renderStudentList } from './student-list.js';
 import { renderAdmin } from './admin.js';
+import { doc, setDoc } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js";
+import { db } from '../data/firebase.js';
+import { defaultConfig } from '../data/default-config.js';
 
 export const appState = {
   user: null,
@@ -82,7 +85,37 @@ function render() {
   if (appState.view === 'auth') {
     renderAuth(root);
   } else if (!appState.config) {
-    root.innerHTML = '<div class="container text-center p-md">Завантаження конфігурації...</div>';
+    root.innerHTML = `
+      <div class="container text-center flex flex-col items-center gap-md" style="padding-top: var(--spacing-xl);">
+        <h2>Завантаження конфігурації...</h2>
+        <p class="text-muted">Якщо це перший запуск, ініціалізуйте початкові налаштування в базі даних:</p>
+        <button id="btn-seed-config" class="primary">Завантажити початкову конфігурацію</button>
+        <div class="surface-card text-left" style="font-size: 13px; margin-top: var(--spacing-md); max-width: 450px;">
+          <strong>Ваш UID вчителя:</strong><br>
+          <code style="word-break: break-all; color: var(--accent);">${appState.user?.uid || ''}</code>
+          <p style="margin-top: 8px; margin-bottom: 0;" class="text-muted">
+            У Firebase Console → Firestore Database створіть колекцію <code>admins</code> із документом <code>${appState.user?.uid || ''}</code>, щоб надати собі права вчителя.
+          </p>
+        </div>
+      </div>
+    `;
+    const btn = document.getElementById('btn-seed-config');
+    if (btn) {
+      btn.addEventListener('click', async () => {
+        btn.disabled = true;
+        btn.textContent = 'Збереження...';
+        try {
+          await setDoc(doc(db, "config", "published"), defaultConfig);
+          await setDoc(doc(db, "config", "stock"), { items: { tartlet: 24 } });
+          showToast('Конфігурацію успішно збережено!');
+        } catch (err) {
+          console.error(err);
+          alert('Помилка: ' + err.message + '\n\nПеревірте у Firebase Console:\n1. Чи створено документ admins/' + appState.user?.uid + '\n2. Чи збережено firestore.rules у Rules');
+          btn.disabled = false;
+          btn.textContent = 'Завантажити початкову конфігурацію';
+        }
+      });
+    }
   } else if (appState.view === 'scanner') {
     renderScanner(root);
   } else if (appState.view === 'student-panel') {

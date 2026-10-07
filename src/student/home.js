@@ -1,0 +1,76 @@
+import { levelOf, progressTo } from '../engine/economy.js';
+import { logout } from './app.js';
+
+export function renderHome(root, state) {
+  const p = state.profile;
+  const c = state.config;
+  
+  const level = levelOf(p.earned, c);
+  const prog = progressTo(p.earned, c);
+  
+  let countdownHtml = '';
+  if (c.settings && c.settings.yearEnd) {
+    const end = new Date(c.settings.yearEnd).getTime();
+    const now = Date.now();
+    const daysLeft = Math.ceil((end - now) / (1000 * 60 * 60 * 24));
+    if (daysLeft <= 14 && daysLeft > 0) {
+      countdownHtml = `<div class="surface-card text-center" style="margin-bottom: var(--spacing-md); color: var(--danger); font-weight: bold;">
+        До кінця року ${daysLeft} дн. Залишок ${p.balance} ✦: встигни обміняти!
+      </div>`;
+    }
+  }
+
+  root.innerHTML = `
+    <div class="container">
+      <div class="top-bar">
+        <h2 style="margin:0;">${p.alias}</h2>
+        <button id="btn-logout" class="danger" style="padding: 4px 8px; min-height: auto; font-size: 14px;">Це не я</button>
+      </div>
+      
+      ${countdownHtml}
+
+      <div class="surface-card text-center" style="margin-bottom: var(--spacing-md);">
+        <div style="font-size: 16px; color: var(--muted);">${level.name}</div>
+        <div style="font-size: 72px; font-weight: bold; color: var(--star); line-height: 1;">${p.balance} ✦</div>
+        
+        <div style="margin-top: var(--spacing-md); text-align: left;">
+          <div class="flex justify-between text-muted" style="font-size: 14px; margin-bottom: 4px;">
+            <span>${level.name}</span>
+            <span>до ${prog.nextName}: ${prog.remaining} ✦</span>
+          </div>
+          <div style="width: 100%; background: var(--bg); height: 8px; border-radius: 4px; overflow: hidden;">
+            <div style="width: ${prog.percent}%; background: var(--accent); height: 100%;"></div>
+          </div>
+        </div>
+      </div>
+
+      <div class="surface-card" style="margin-bottom: var(--spacing-md);">
+        <h3 style="margin-top:0;">Нагороди</h3>
+        <div class="flex flex-col gap-sm">
+          ${renderTopShop(p, c)}
+        </div>
+      </div>
+    </div>
+  `;
+
+  document.getElementById('btn-logout').addEventListener('click', logout);
+}
+
+function renderTopShop(p, c) {
+  const shop = c.shop || [];
+  return shop.slice(0, 3).map(item => {
+    const percent = Math.min(100, Math.floor((p.balance / item.price) * 100));
+    const canAfford = p.balance >= item.price;
+    return `
+      <div style="background: var(--bg); padding: var(--spacing-sm); border-radius: var(--radius-sm);">
+        <div class="flex justify-between" style="margin-bottom: 4px;">
+          <span>${item.icon} ${item.name}</span>
+          <span style="font-weight: bold;">${item.price} ✦ ${canAfford ? ' [✓]' : ''}</span>
+        </div>
+        <div style="width: 100%; background: var(--surface); height: 6px; border-radius: 3px; overflow: hidden;">
+          <div style="width: ${percent}%; background: ${canAfford ? 'var(--ok)' : 'var(--star)'}; height: 100%;"></div>
+        </div>
+      </div>
+    `;
+  }).join('');
+}

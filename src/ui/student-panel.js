@@ -106,13 +106,13 @@ function updatePreview() {
     return;
   }
   
-  const res = creditGrades(profile, selectedGrades, appState.config, Date.now());
-  if (res.ok) {
+  try {
+    const res = creditGrades(profile, selectedGrades, appState.config, Date.now());
     preview.textContent = `Вибрано: ${selectedGrades.join(', ')} → +${res.delta} ✦` + 
       (res.events.length > 0 ? ` (${res.events.map(e => '+' + e.delta + ' ✦ ' + e.quest).join(', ')})` : '');
     btnCredit.disabled = false;
-  } else {
-    preview.textContent = res.reason === 'too-many-grades' ? 'Забагато оцінок' : 'Помилка розрахунку';
+  } catch (err) {
+    preview.textContent = err.message === 'too-many-grades' ? 'Забагато оцінок' : 'Помилка розрахунку';
     btnCredit.disabled = true;
   }
 }

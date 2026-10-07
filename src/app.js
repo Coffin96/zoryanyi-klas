@@ -1,18 +1,13 @@
-import { renderStarIcon } from './components/star-icon.js';
+import { initStudentApp } from './student/app.js';
 
-const app = document.getElementById('app');
-
-function render() {
-  const hash = window.location.hash || '#/';
-  app.innerHTML = `
-    ${renderStarIcon()}
-    <div style="padding: 20px;">
-      <h1>Учень</h1>
-      <p>Поточний маршрут: ${hash}</p>
-      <p>Тут буде відображатися інтерфейс учня.</p>
-    </div>
-  `;
+if ('serviceWorker' in navigator) {
+  window.addEventListener('load', () => {
+    navigator.serviceWorker.register('./sw.js').catch(err => {
+      console.error('SW registration failed:', err);
+    });
+  });
 }
 
-window.addEventListener('hashchange', render);
-render();
+document.addEventListener('DOMContentLoaded', () => {
+  initStudentApp();
+});

@@ -56,13 +56,13 @@ export async function renderAdmin(root) {
           balance: 0,
           earned: 0,
           recent: [],
-          hot: 0,
-          last: 0,
-          lastOp: "",
-          lastAt: nowMs,
-          stats: { grades: 0, quests: 0, items: 0 },
+          hot: [],
+          last: null,
+          lastOp: null,
+          lastAt: {},
+          stats: { gradeCount: {}, quests: {}, redeemed: {} },
           counters: {},
-          achievements: {},
+          achievements: [],
           v: 1
         });
       });
