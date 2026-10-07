@@ -4,6 +4,8 @@ import { credit, redeem, undo, awardManual } from '../data/tx.js';
 import { creditGrades, levelOf } from '../engine/economy.js';
 import { getInitials } from '../data/names-db.js';
 import { generateQRUrl } from '../engine/qr-protocol.js';
+import { doc, deleteDoc } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js";
+import { db } from '../data/firebase.js';
 
 let unsubscribeProfile = null;
 let profile = null;
@@ -34,6 +36,9 @@ export function renderStudentPanel(root) {
         </button>
       </div>
 
+      <!-- Банер активного замовлення учня за QR-кодом -->
+      <div id="order-banner-container"></div>
+
       <!-- Оцінки -->
       <div class="surface-card" style="margin-bottom: var(--spacing-md);">
         <p class="text-muted" style="margin-top:0; font-weight: 600;">Оцінки з щоденника:</p>
@@ -56,6 +61,12 @@ export function renderStudentPanel(root) {
       <div class="flex gap-sm" style="margin-top: var(--spacing-md);">
         <button id="btn-next-student" class="primary" style="flex:1; padding: 12px;">📷 Наступний учень (сканер)</button>
         <button id="btn-back-bottom" style="flex:1; padding: 12px; background: var(--surface);">👥 До списку учнів</button>
+      </div>
+
+      <div style="margin-top: var(--spacing-lg); text-align: center; padding-bottom: 16px;">
+        <button id="btn-delete-student" class="danger" style="background: transparent; border: 1px solid var(--danger); color: var(--danger); font-size: 13px; padding: 8px 16px; min-height: auto;">
+          🗑️ Видалити учня з класу
+        </button>
       </div>
     </div>
 
@@ -141,6 +152,29 @@ export function renderStudentPanel(root) {
   renderQuests();
 
   document.getElementById('btn-credit').addEventListener('click', handleCredit);
+
+  const btnDelete = document.getElementById('btn-delete-student');
+  if (btnDelete) {
+    btnDelete.addEventListener('click', async () => {
+      if (!confirm(`Ви дійсно бажаєте видалити учня "${alias}"? Всі його дані та зірки буде незворотно видалено.`)) {
+        return;
+      }
+      btnDelete.disabled = true;
+      btnDelete.textContent = 'Видалення...';
+      try {
+        await deleteDoc(doc(db, "profiles", uuid));
+        cleanup();
+        appState.currentStudent = null;
+        showToast(`Учня "${alias}" успішно видалено`);
+        navigate('student-list');
+      } catch (err) {
+        console.error(err);
+        alert('Помилка видалення: ' + err.message);
+        btnDelete.disabled = false;
+        btnDelete.textContent = '🗑️ Видалити учня з класу';
+      }
+    });
+  }
 }
 
 function cleanup() {
@@ -284,19 +318,24 @@ function renderQuests() {
   });
 }
 
-async function handleRedeem(itemObj) {
-  if (!confirm(`Списати ${itemObj.price} ✦ за "${itemObj.name}"?`)) return;
+async function handleRedeem(itemObj, qty = 1) {
+  const totalCost = itemObj.price * qty;
+  if (!confirm(`Списати ${totalCost} ✦ за "${itemObj.name}"${qty > 1 ? ` (${qty} шт.)` : ''}?`)) return;
   const opId = crypto.randomUUID();
   try {
-    const res = await redeem(profile.id, opId, appState.config, itemObj, 1);
+    const res = await redeem(profile.id, opId, appState.config, itemObj, qty);
     if (res.ok) {
-      showToast(`Видано ${itemObj.icon} −${itemObj.price} ✦ (Залишок: ${profile.balance - itemObj.price} ✦)`, {
+      showToast(`Видано ${itemObj.icon} −${totalCost} ✦ (Залишок: ${profile.balance - totalCost} ✦)`, {
         text: 'Скасувати',
         handler: async () => {
-          await undo(profile.id, crypto.randomUUID(), appState.config, { id: opId, type: 'redeem', delta: -itemObj.price });
+          await undo(profile.id, crypto.randomUUID(), appState.config, { id: opId, type: 'redeem', delta: -totalCost });
           showToast('Скасовано');
         }
       });
+      if (appState.currentOrder && appState.currentOrder.item === itemObj.id) {
+        appState.currentOrder = null;
+        renderOrderBanner();
+      }
     }
   } catch (err) {
     console.error(err);
@@ -324,6 +363,65 @@ async function handleManualQuest(quest) {
   }
 }
 
+function renderOrderBanner() {
+  const container = document.getElementById('order-banner-container');
+  if (!container) return;
+  if (!appState.currentOrder || !profile || !appState.config) {
+    container.innerHTML = '';
+    return;
+  }
+
+  const { item: itemId, qty = 1 } = appState.currentOrder;
+  const orderItem = (appState.config.shop || []).find(i => i.id === itemId);
+  if (!orderItem) {
+    container.innerHTML = '';
+    return;
+  }
+
+  const totalCost = orderItem.price * qty;
+  const canAfford = profile.balance >= totalCost;
+
+  container.innerHTML = `
+    <div class="surface-card flex justify-between items-center" style="margin-bottom: var(--spacing-md); border: 2px solid var(--accent); background: rgba(124, 77, 255, 0.12); padding: 14px;">
+      <div>
+        <div style="font-size: 11px; text-transform: uppercase; letter-spacing: 0.5px; color: var(--accent); font-weight: bold;">
+          🎁 Замовлення за QR-кодом
+        </div>
+        <div style="font-size: 17px; font-weight: bold; margin-top: 2px;">
+          ${orderItem.icon || '🎁'} ${orderItem.name} ${qty > 1 ? `(${qty} шт.)` : ''}
+        </div>
+        <div style="font-size: 13px; color: var(--muted); margin-top: 2px;">
+          Вартість: <strong style="color: var(--star);">${totalCost} ✦</strong> 
+          ${canAfford ? `<span style="color: var(--ok);">(вистачає)</span>` : `<span style="color: var(--danger);">(бракує ${totalCost - profile.balance} ✦)</span>`}
+        </div>
+      </div>
+      <div class="flex gap-xs items-center">
+        <button id="btn-fulfill-order" class="primary" style="padding: 10px 14px; font-weight: bold;" ${canAfford ? '' : 'disabled'}>
+          Видати ✓
+        </button>
+        <button id="btn-dismiss-order" style="padding: 8px 10px; background: transparent; border: 1px solid rgba(255,255,255,0.2); font-size: 14px;" title="Закрити замовлення">
+          ✕
+        </button>
+      </div>
+    </div>
+  `;
+
+  const btnFulfill = document.getElementById('btn-fulfill-order');
+  if (btnFulfill) {
+    btnFulfill.addEventListener('click', async () => {
+      await handleRedeem(orderItem, qty);
+    });
+  }
+
+  const btnDismiss = document.getElementById('btn-dismiss-order');
+  if (btnDismiss) {
+    btnDismiss.addEventListener('click', () => {
+      appState.currentOrder = null;
+      renderOrderBanner();
+    });
+  }
+}
+
 function updatePanel() {
   const balEl = document.getElementById('panel-balance');
   if (balEl) balEl.textContent = `${profile.balance} ✦`;
@@ -334,6 +432,7 @@ function updatePanel() {
     lvlEl.textContent = `Рівень: ${lvl.name} (зароблено ${profile.earned} ✦)`;
   }
 
+  renderOrderBanner();
   updatePreview();
   renderShop();
   renderQuests();

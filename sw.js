@@ -1,4 +1,4 @@
-const CACHE_NAME = 'zoryanyi-klas-v3';
+const CACHE_NAME = 'zoryanyi-klas-v5';
 const ASSETS = [
   './',
   './index.html',
@@ -18,8 +18,10 @@ const ASSETS = [
   './src/data/tx.js',
   './src/data/names-db.js',
   './src/data/default-config.js',
+  './src/data/export.js',
   './src/engine/time.js',
   './src/engine/economy.js',
+  './src/engine/helpers.js',
   './src/engine/qr-protocol.js',
   './src/engine/quests.js',
   './src/engine/redeem.js',
@@ -37,7 +39,9 @@ const ASSETS = [
   './src/ui/scanner.js',
   './src/ui/student-panel.js',
   './src/ui/student-list.js',
-  './src/ui/admin.js'
+  './src/ui/admin.js',
+  './src/ui/budget.js',
+  './src/ui/ops.js'
 ];
 
 self.addEventListener('install', (event) => {

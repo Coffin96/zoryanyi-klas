@@ -1,12 +1,15 @@
+import { encodeR } from '../engine/qr-protocol.js';
+import { kyivParts } from '../engine/time.js';
+
 export function renderShop(root, state) {
   const p = state.profile;
   const c = state.config;
-  const shop = c.shop || [];
+  const shop = (c.shop || []).filter(item => item.active !== false);
 
   root.innerHTML = `
     <div class="container">
-      <h2>Магазин</h2>
-      <p class="text-muted" style="margin-bottom: var(--spacing-md);">Покажи свій QR вчителю, щоб придбати.</p>
+      <h2>Магазин нагород</h2>
+      <p class="text-muted" style="margin-bottom: var(--spacing-md);">Обирай нагороду та покажи свій QR вчителю.</p>
       
       <div class="flex flex-col gap-sm">
         ${shop.map(item => {
@@ -17,14 +20,25 @@ export function renderShop(root, state) {
             <div class="surface-card">
               <div class="flex justify-between items-center" style="margin-bottom: var(--spacing-sm);">
                 <div class="flex items-center gap-sm">
-                  <span style="font-size: 24px;">${item.icon}</span>
+                  <span style="font-size: 28px;">${item.icon || '🎁'}</span>
                   <div>
-                    <div style="font-weight: bold;">${item.name}</div>
-                    <div class="text-muted" style="font-size: 12px;">${item.desc}</div>
+                    <div style="font-weight: bold; font-size: 16px;">${item.name}</div>
+                    <div class="text-muted" style="font-size: 12px;">
+                      ${item.category === 'sweet' ? 'Смаколик' : 'Привілей'}
+                    </div>
                   </div>
                 </div>
-                <div style="font-weight: bold; font-size: 18px; color: ${canAfford ? 'var(--ok)' : 'var(--text)'};">
-                  ${item.price} ✦
+                <div style="text-align: right;">
+                  <div style="font-weight: bold; font-size: 18px; color: ${canAfford ? 'var(--ok)' : 'var(--text)'};">
+                    ${item.price} ✦
+                  </div>
+                  ${canAfford ? `
+                    <button class="btn-order primary" data-id="${item.id}" style="padding: 4px 10px; font-size: 12px; min-height: 32px; margin-top: 4px;">
+                      🎁 Замовити
+                    </button>
+                  ` : `
+                    <span class="text-muted" style="font-size: 11px;">ще ${item.price - p.balance} ✦</span>
+                  `}
                 </div>
               </div>
               <div style="width: 100%; background: var(--bg); height: 8px; border-radius: 4px; overflow: hidden;">
@@ -35,5 +49,59 @@ export function renderShop(root, state) {
         }).join('')}
       </div>
     </div>
+
+    <!-- Модальне вікно замовлення конкретної нагороди -->
+    <div id="order-modal" style="display:none; position:fixed; top:0; left:0; right:0; bottom:0; background:rgba(0,0,0,0.85); z-index:200; align-items:center; justify-content:center; padding:16px;">
+      <div class="surface-card text-center" style="max-width:320px; width:100%; padding:24px;">
+        <div id="order-icon" style="font-size: 40px; margin-bottom: 4px;"></div>
+        <h3 id="order-title" style="margin: 0 0 4px 0;"></h3>
+        <div id="order-price" style="font-size: 16px; font-weight: bold; color: var(--star); margin-bottom: 12px;"></div>
+        
+        <div id="order-qr-container" style="background:white; padding:12px; border-radius:12px; display:inline-block; margin-bottom:12px;"></div>
+        
+        <p class="text-muted" style="font-size: 12px; margin: 0 0 16px 0;">
+          Покажи цей QR вчителю для отримання нагороди.<br>
+          <span style="color: var(--ok);">Дійсний лише сьогодні!</span>
+        </p>
+
+        <button id="btn-close-order" class="primary" style="width: 100%; padding: 10px;">Зрозуміло</button>
+      </div>
+    </div>
   `;
+
+  const orderModal = document.getElementById('order-modal');
+  const btnClose = document.getElementById('btn-close-order');
+  if (btnClose) {
+    btnClose.addEventListener('click', () => { orderModal.style.display = 'none'; });
+  }
+  orderModal.addEventListener('click', (e) => {
+    if (e.target === orderModal) orderModal.style.display = 'none';
+  });
+
+  root.querySelectorAll('.btn-order').forEach(btn => {
+    btn.addEventListener('click', () => {
+      const itemId = btn.dataset.id;
+      const item = shop.find(x => x.id === itemId);
+      if (!item) return;
+
+      const orderId = crypto.randomUUID().slice(0, 8);
+      const { ymd } = kyivParts(Date.now());
+      const payload = encodeR(state.uuid, orderId, item.id, 1, ymd);
+
+      document.getElementById('order-icon').textContent = item.icon || '🎁';
+      document.getElementById('order-title').textContent = item.name;
+      document.getElementById('order-price').textContent = `${item.price} ✦`;
+
+      const qrContainer = document.getElementById('order-qr-container');
+      qrContainer.innerHTML = '';
+      if (window.qrcode) {
+        const qr = window.qrcode(0, 'M');
+        qr.addData(payload);
+        qr.make();
+        qrContainer.innerHTML = qr.createImgTag(5, 0);
+      }
+
+      orderModal.style.display = 'flex';
+    });
+  });
 }

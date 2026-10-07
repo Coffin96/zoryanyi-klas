@@ -81,8 +81,69 @@ export function budgetSummary({ ledgers, cfg, from, to }) {
 }
 
 export function recommendPrice(item, cfg) {
-
   if (!item.unitCost) return 0;
   const disc = item.discount || 0;
   return Math.round((item.unitCost / cfg.settings.refPerStar) * (1 - disc));
 }
+
+/**
+ * Чиста перевірка цілісності даних профілів
+ */
+export function checkDataIntegrity(profiles) {
+  const issues = [];
+  const aliasMap = new Map();
+
+  profiles.forEach(p => {
+    // 1. Від'ємний або некоректний баланс
+    if (typeof p.balance !== 'number' || p.balance < 0) {
+      issues.push({
+        uuid: p.id,
+        alias: p.alias || 'Без псевдоніма',
+        type: 'negative-balance',
+        severity: 'error',
+        message: `Баланс є від'ємним або некоректним: ${p.balance}`
+      });
+    }
+
+    // 2. Зароблено менше ніж баланс (earned повинен бути >= balance)
+    if (typeof p.earned === 'number' && typeof p.balance === 'number' && p.earned < p.balance) {
+      issues.push({
+        uuid: p.id,
+        alias: p.alias || 'Без псевдоніма',
+        type: 'earned-less-than-balance',
+        severity: 'warning',
+        message: `Загалом зароблено (${p.earned}) менше, ніж поточний баланс (${p.balance})`
+      });
+    }
+
+    // 3. Відсутність псевдоніма
+    if (!p.alias || typeof p.alias !== 'string' || p.alias.trim() === '') {
+      issues.push({
+        uuid: p.id,
+        alias: 'Невідомо',
+        type: 'missing-alias',
+        severity: 'error',
+        message: 'Відсутній обов\'язковий псевдонім учня'
+      });
+    }
+
+    // 4. Повторювані псевдоніми
+    if (p.alias) {
+      const lower = p.alias.toLowerCase().trim();
+      if (aliasMap.has(lower)) {
+        issues.push({
+          uuid: p.id,
+          alias: p.alias,
+          type: 'duplicate-alias',
+          severity: 'warning',
+          message: `Дубльований псевдонім з іншим учнем (UUID: ${aliasMap.get(lower)})`
+        });
+      } else {
+        aliasMap.set(lower, p.id);
+      }
+    }
+  });
+
+  return issues;
+}
+

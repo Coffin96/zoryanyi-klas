@@ -48,6 +48,7 @@ export function navigate(view, params = {}) {
   appState.view = view;
   if (view === 'student-panel') {
     appState.currentStudent = params.student;
+    appState.currentOrder = params.order || null;
   }
   render();
 }

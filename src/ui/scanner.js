@@ -3,6 +3,7 @@ import { parseQR } from '../engine/qr-protocol.js';
 import { getProfile } from '../data/repo.js';
 import { texts } from '../i18n/uk.js';
 import { logoutTeacher } from '../data/firebase.js';
+import { kyivParts } from '../engine/time.js';
 
 let stream = null;
 let scanInterval = null;
@@ -105,9 +106,16 @@ async function handleScan(data) {
       stopScanner();
       navigate('student-panel', { student: { uuid: profile.id, alias: profile.alias } });
     } else if (qrData.type === 'R') {
+      const { ymd } = kyivParts(nowMs);
+      if (qrData.ymd !== ymd) {
+        throw new Error("expired-order");
+      }
       const profile = await getProfile(qrData.uuid);
       stopScanner();
-      navigate('student-panel', { student: { uuid: profile.id, alias: profile.alias }, order: qrData.item });
+      navigate('student-panel', { 
+        student: { uuid: profile.id, alias: profile.alias }, 
+        order: { item: qrData.item, qty: qrData.qty } 
+      });
     } else {
       throw new Error("unsupported-qr");
     }
@@ -115,7 +123,7 @@ async function handleScan(data) {
     console.error(err);
     const msgEl = document.getElementById('scanner-msg');
     if (msgEl) {
-      msgEl.textContent = texts.scan.unknown;
+      msgEl.textContent = err.message === 'expired-order' ? 'Замовлення прострочено (створено не сьогодні)' : texts.scan.unknown;
       msgEl.style.color = 'var(--danger)';
       setTimeout(() => {
         if (msgEl) {

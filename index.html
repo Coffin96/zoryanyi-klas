@@ -21,7 +21,27 @@
     window.addEventListener('error', function(e) {
       var app = document.getElementById('app');
       if (app && app.innerHTML.includes('Завантаження застосунку')) {
-        app.innerHTML = '<div style="min-height: 85vh; display: flex; flex-direction: column; align-items: center; justify-content: center; text-align: center; padding: 24px; color: #f2f4ff;"><div style="font-size: 48px; color: #ff6b6b; margin-bottom: 12px;">⚠️</div><h2 style="margin: 0 0 8px 0;">Помилка завантаження</h2><p style="color: #ff6b6b; max-width: 320px; font-size: 14px; margin-bottom: 20px;">' + (e.message || 'Не вдалося завантажити модулі') + '</p><button onclick="location.reload()" style="background: #8b7bff; color: white; border: none; padding: 12px 24px; border-radius: 12px; font-weight: bold; cursor: pointer;">Спробувати знову</button></div>';
+        app.innerHTML = '<div style="min-height: 85vh; display: flex; flex-direction: column; align-items: center; justify-content: center; text-align: center; padding: 24px; color: #f2f4ff;"><div style="font-size: 48px; color: #ff6b6b; margin-bottom: 12px;">⚠️</div><h2 style="margin: 0 0 8px 0;">Помилка завантаження</h2><p style="color: #ff6b6b; max-width: 320px; font-size: 14px; margin-bottom: 20px;">' + (e.message || 'Не вдалося завантажити модулі') + '</p><button id="btn-force-reload" style="background: #8b7bff; color: white; border: none; padding: 12px 24px; border-radius: 12px; font-weight: bold; cursor: pointer;">Очистити кеш та оновити</button></div>';
+        var btn = document.getElementById('btn-force-reload');
+        if (btn) {
+          btn.onclick = function() {
+            btn.textContent = 'Очищення...';
+            btn.disabled = true;
+            if ('serviceWorker' in navigator) {
+              navigator.serviceWorker.getRegistrations().then(function(regs) {
+                for (var i = 0; i < regs.length; i++) regs[i].unregister();
+              });
+            }
+            if ('caches' in window) {
+              caches.keys().then(function(keys) {
+                for (var i = 0; i < keys.length; i++) caches.delete(keys[i]);
+              });
+            }
+            setTimeout(function() {
+              window.location.reload(true);
+            }, 300);
+          };
+        }
       }
     });
   </script>
