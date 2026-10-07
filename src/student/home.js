@@ -29,6 +29,16 @@ export function renderHome(root, state) {
       
       ${countdownHtml}
 
+      <div id="pwa-install-hint" class="surface-card text-left" style="margin-bottom: var(--spacing-md); background: rgba(61, 220, 151, 0.1); border: 1px solid var(--ok); display: none;">
+        <div class="flex justify-between items-start" style="margin-bottom: 8px;">
+          <h3 style="margin: 0; color: var(--ok); font-size: 14px;">📲 Збережи свій профіль!</h3>
+          <button id="btn-close-hint" style="background: transparent; border: none; color: var(--muted); font-size: 16px; cursor: pointer; min-height: auto; padding: 0;">×</button>
+        </div>
+        <p style="margin: 0; font-size: 13px; color: var(--text);">
+          Додай цю сторінку на головний екран телефону (або в закладки). Тобі більше не знадобиться QR-код, щоб перевіряти баланс!
+        </p>
+      </div>
+
       <div class="surface-card text-center" style="margin-bottom: var(--spacing-md);">
         <div style="font-size: 16px; color: var(--muted);">${level.name}</div>
         <div style="font-size: 72px; font-weight: bold; color: var(--star); line-height: 1;">${p.balance} ✦</div>
@@ -54,6 +64,24 @@ export function renderHome(root, state) {
   `;
 
   document.getElementById('btn-logout').addEventListener('click', logout);
+
+  setTimeout(() => {
+    const isStandalone = window.matchMedia('(display-mode: standalone)').matches || window.navigator.standalone;
+    const hintClosed = localStorage.getItem('zk_hide_install_hint');
+    if (!isStandalone && !hintClosed) {
+      const hint = document.getElementById('pwa-install-hint');
+      if (hint) {
+        hint.style.display = 'block';
+        const btnClose = document.getElementById('btn-close-hint');
+        if (btnClose) {
+          btnClose.addEventListener('click', () => {
+            hint.style.display = 'none';
+            localStorage.setItem('zk_hide_install_hint', 'true');
+          });
+        }
+      }
+    }
+  }, 100);
 }
 
 function renderTopShop(p, c) {
