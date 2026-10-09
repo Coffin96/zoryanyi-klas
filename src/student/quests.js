@@ -1,4 +1,5 @@
 import { kyivParts } from '../engine/time.js';
+import { validateQuest } from '../engine/quests.js';
 import { 
   iconFiligreeDivider, 
   iconFlame, 
@@ -63,9 +64,23 @@ export function renderQuests(root, state) {
           const count = Math.max(counters[quest.id] || 0, p.stats?.quests?.[quest.id] || 0);
           const isDone = count >= limit || currentStars >= currentCap;
 
-          const target = quest.target ?? quest.params?.target ?? limit;
-          const progress = isLifetime ? (p.earned || 0) : count;
-          const percent = isDone ? 100 : (target > 0 ? Math.min(100, Math.floor((progress / target) * 100)) : 0);
+          let progress = 0; let target = limit; let percent = 0;
+          if (isDone) {
+            percent = 100;
+          } else {
+            try {
+              const val = validateQuest(p, quest, { nowMs, month, week });
+              progress = val.progress ?? 0;
+              target = val.target ?? limit;
+              percent = val.percent ?? 0;
+            } catch {
+              progress = isLifetime ? (p.earned || 0) : count;
+              target = quest.target ?? limit;
+              percent = target > 0 ? Math.min(100, Math.floor((progress / target) * 100)) : 0;
+            }
+          }
+          const fmtProg = Number.isInteger(progress) ? progress : Number(progress).toFixed(1);
+          const fmtTar = Number.isInteger(target) ? target : Number(target).toFixed(1);
 
           let desc = quest.desc || quest.description;
           if (!desc) {
@@ -118,7 +133,7 @@ export function renderQuests(root, state) {
               <div style="margin-top: 10px;">
                 <div class="flex justify-between" style="font-size: 11px; margin-bottom: 4px; color: var(--text-parchment-subtle);">
                   <span>${isDone ? (count >= limit ? 'Виконано ✓' : 'Ліміт зірок вичерпано') : `Прогрес ${periodText}:`}</span>
-                  <span style="font-weight: 700; color: var(--text-parchment);">${isLifetime ? `${Math.min(progress, target)} / ${target}` : `${count} / ${limit}`}</span>
+                  <span style="font-weight: 700; color: var(--text-parchment);">${isDone ? "Виконано" : (fmtProg + " / " + fmtTar)}</span>
                 </div>
                 <div class="genshin-progress-track">
                   <div class="${isDone ? 'genshin-progress-fill-cyan' : 'genshin-progress-fill-gold'}" style="width: ${percent}%;"></div>

@@ -545,7 +545,7 @@ describe('Expanded Quests System (Stage 3)', () => {
         questWeeklyCap: 15,
         questMonthlyCap: 30,
         quests: [
-          { id: 'q_far', type: 'target_grade', active: true, reward: 2, params: { grade: 12 } },
+          { id: 'q_far', type: 'monthly_average', active: true, reward: 2, params: { minAverage: 11 } },
           lifetimeQuest100 // 80 / 100 = 80%
         ]
       };
@@ -555,6 +555,25 @@ describe('Expanded Quests System (Stage 3)', () => {
       assert.strictEqual(nearest.quest.id, 'lifetime_100');
       assert.strictEqual(nearest.percent, 80);
       assert.strictEqual(nearest.isLifetime, true);
+    });
+
+    test('findNearestQuest: активний квест має перевагу над пасивним та ігнорує percent >= 100', () => {
+      const p = emptyProfile();
+      p.earned = 80;
+
+      const cfg = {
+        questWeeklyCap: 15,
+        questMonthlyCap: 30,
+        quests: [
+          { id: 'q_active', type: 'target_grade', active: true, reward: 2, params: { grade: 12 } },
+          lifetimeQuest100 // 80 / 100 = 80%
+        ]
+      };
+
+      const nearest = findNearestQuest(p, cfg);
+      assert.ok(nearest);
+      assert.strictEqual(nearest.quest.id, 'q_active', 'Активний квест має пріоритет над пасивним');
+      assert.strictEqual(nearest.priority, 1);
     });
 
     test('firebase/seed/published.json та defaultConfig містять lifetime квести', () => {

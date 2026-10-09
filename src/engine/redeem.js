@@ -11,12 +11,6 @@ export function redeem(p, item, qty, cfg, nowMs, stock = {}) {
   
   const lim = item.limits ?? {};
   if (lim.perMonth && (p.counters[month]?.[item.id] ?? 0) + qty > lim.perMonth) return fail('limit-month');
-  if (lim.cooldownDays) {
-    const last = p.lastAt?.[item.id];
-    if (last != null && nowMs - last < lim.cooldownDays * 86400000)
-      return fail('cooldown', { availableAt: last + lim.cooldownDays * 86400000 });
-    if (qty > 1) return fail('limit-month'); // cooldown дозволяє лише 1 за раз
-  }
   
   const prev = snapshot(p);
   const next = structuredClone(p);
@@ -25,8 +19,6 @@ export function redeem(p, item, qty, cfg, nowMs, stock = {}) {
   next.balance += delta;
   (next.counters[month] ??= {})[item.id] = (next.counters[month][item.id] ?? 0) + qty;
   bump(next.stats.redeemed, item.id, qty);
-  
-  if (lim.cooldownDays) next.lastAt = { ...next.lastAt, [item.id]: nowMs };
   
   return { ok: true, profile: next, delta, prev, stockDelta: { [item.id]: -qty } };
 }

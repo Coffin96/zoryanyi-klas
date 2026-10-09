@@ -360,6 +360,11 @@ export function findNearestQuest(p, cfg, nowMs = Date.now()) {
       percent = target > 0 ? Math.min(100, Math.floor((progress / target) * 100)) : 0;
     }
 
+    if (percent >= 100) continue;
+
+    const isPassive = q.type === 'monthly_average' || q.type === 'period_average' || q.type === 'growth' || q.type === 'monthly_growth' || q.type === 'lifetime_milestone';
+    const priority = isPassive ? 0 : 1;
+
     let desc = q.desc || q.description;
     if (!desc) {
       if (q.type === 'weekly_count' || q.type === 'grade_count') desc = 'Отримай 4 оцінки протягом тижня';
@@ -379,6 +384,7 @@ export function findNearestQuest(p, cfg, nowMs = Date.now()) {
       progress,
       target,
       percent,
+      priority,
       desc,
       reward: q.reward || 0,
       isWeekly,
@@ -390,6 +396,7 @@ export function findNearestQuest(p, cfg, nowMs = Date.now()) {
 
   // Обираємо квест з найвищим відсотком завершення (якщо однакові: за прогресом або нагородою)
   candidates.sort((a, b) => {
+    if (a.priority !== b.priority) return b.priority - a.priority;
     if (b.percent !== a.percent) return b.percent - a.percent;
     if (b.progress !== a.progress) return b.progress - a.progress;
     return b.reward - a.reward;

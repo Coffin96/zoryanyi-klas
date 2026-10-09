@@ -324,6 +324,7 @@ export async function renderAdmin(root) {
     btn.textContent = 'Збереження...';
 
     try {
+      shopItems.forEach(item => delete item.limits);
       await updateDoc(doc(db, "config", "published"), {
         shop: shopItems
       });

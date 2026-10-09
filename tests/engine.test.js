@@ -16,7 +16,7 @@ const mockCfg = {
   ],
   shop: [
     { id: 'caramel', active: true, price: 7, category: 'sweet' },
-    { id: 'tartlet', active: true, price: 17, category: 'sweet', limits: { cooldownDays: 30 }, unitCost: 5.5, discount: 0 },
+    { id: 'tartlet', active: true, price: 17, category: 'sweet', unitCost: 5.5, discount: 0 },
     { id: 'priv_music', active: true, price: 5, category: 'privilege', limits: { perMonth: 2 } },
     { id: 'jelly', active: true, price: 12, category: 'sweet' }
   ],
@@ -146,24 +146,6 @@ describe('Engine Tests', () => {
     assert.strictEqual(res.missing, 1);
   });
 
-  test('E15: redeem tartlet cooldown start', () => {
-    const p = emptyProfile();
-    p.balance = 20;
-    const now = 1000;
-    const res = redeem(p, mockCfg.shop[1], 1, mockCfg, now, { tartlet: 5 });
-    assert.strictEqual(res.ok, true);
-    assert.strictEqual(res.profile.lastAt.tartlet, now);
-  });
-
-  test('E16: redeem tartlet cooldown fail', () => {
-    const p = emptyProfile();
-    p.balance = 20;
-    p.lastAt = { tartlet: 1000 };
-    const now = 1000 + 10 * 86400000; // 10 days later
-    const res = redeem(p, mockCfg.shop[1], 1, mockCfg, now, { tartlet: 5 });
-    assert.strictEqual(res.ok, false);
-    assert.strictEqual(res.reason, 'cooldown');
-  });
 
   test('E18: redeem out-of-stock', () => {
     const p = emptyProfile();
@@ -207,9 +189,8 @@ describe('Engine Tests', () => {
   test('E28: forecastDemand', () => {
     const p = emptyProfile();
     p.balance = 20;
-    p.lastAt = { tartlet: 1000 }; // in cooldown
     const now = 1000 + 86400000;
-    const stock = { jelly: 10, tartlet: 10 };
+    const stock = { jelly: 10, tartlet: 0 };
     const demand = forecastDemand([p], mockCfg, now, stock);
     assert.strictEqual(demand.jelly, 1);
     assert.strictEqual(demand.tartlet, undefined);
