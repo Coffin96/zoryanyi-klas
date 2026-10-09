@@ -13,6 +13,7 @@ export const defaultConfig = {
   },
   grades: { "12": 6, "11": 5, "10": 4, "9": 3, "8": 2, "7": 1 },
   questMonthlyCap: 8,
+  questWeeklyCap: 6,
   shop: [
     { id: "caramel", name: "Карамель", icon: "🍬", category: "sweet", price: 7, active: true, order: 1, unitCost: 2.25 },
     { id: "jelly", name: "Желейка", icon: "🍮", category: "sweet", price: 12, active: true, order: 2, unitCost: 3.96 },
@@ -21,9 +22,11 @@ export const defaultConfig = {
     { id: "priv_pc", name: "10 хв творчого часу за комп'ютером", icon: "💻", category: "privilege", price: 8, active: true, order: 5, limits: { perMonth: 2 }, unitCost: 0 }
   ],
   quests: [
-    { id: "growth", type: "growth", title: "Зростання", icon: "📈", active: true, reward: 3, perMonth: 2, params: { window: 10, minHistory: 5, delta: 2, minGrade: 7 } },
-    { id: "streak", type: "streak", title: "Активний тиждень", icon: "🔥", active: true, reward: 2, perMonth: 2, params: { length: 3, minGrade: 8, windowDays: 7 } },
-    { id: "contrib", type: "manual", title: "Внесок у клас", icon: "🤝", active: true, reward: 2, perMonth: 2 }
+    { id: "growth", type: "growth", title: "Зростання", icon: "📈", period: "week", active: true, reward: 3, perWeek: 1, params: { window: 10, minHistory: 5, delta: 2, minGrade: 7 } },
+    { id: "streak", type: "streak", title: "Активний тиждень", icon: "🔥", period: "week", active: true, reward: 2, perWeek: 1, params: { length: 3, minGrade: 8, windowDays: 7 } },
+    { id: "contrib", type: "manual", title: "Внесок у клас", icon: "🤝", period: "week", active: true, reward: 2, perWeek: 2 },
+    { id: "clean", type: "manual", title: "Чистота й чергування", icon: "🧹", period: "week", active: true, reward: 1, perWeek: 2 },
+    { id: "help", type: "manual", title: "Взаємодопомога", icon: "💛", period: "week", active: true, reward: 2, perWeek: 1 }
   ],
   levels: [
     { min: 0, name: "Іскорка" },

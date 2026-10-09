@@ -14,7 +14,7 @@ import { runQuests } from './quests.js';
  * @returns {{profile:ProfileState, entries:{g:number,v:number}[], events:object[], delta:number, prev:object}}
  */
 export function creditGrades(p, grades, cfg, nowMs) {
-  const { month, day } = kyivParts(nowMs);
+  const { month, day, week } = kyivParts(nowMs);
   const next = structuredClone(p);
   const events = [];
   const entries = [];
@@ -26,7 +26,7 @@ export function creditGrades(p, grades, cfg, nowMs) {
     next.balance += v; next.earned += v; delta += v;
     bump(next.stats.gradeCount, g);
     entries.push({ g, v });
-    delta += runQuests(next, g, cfg, month, day, events);
+    delta += runQuests(next, g, cfg, month, day, events, week);
   }
   next.last = { t: nowMs, gs: [...grades] };
   return { profile: next, entries, events, delta, prev };

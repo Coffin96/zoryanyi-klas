@@ -1,4 +1,4 @@
-import { doc, collection, onSnapshot, getDoc, getDocs, query, orderBy, limit, where } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js";
+import { doc, collection, onSnapshot, getDoc, getDocs, query, orderBy, limit, where, updateDoc } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js";
 import { db } from "./firebase.js";
 
 export function listenConfig(onNext, onError) {
@@ -43,4 +43,8 @@ export async function getActiveProfiles() {
   const profiles = [];
   snap.forEach(d => profiles.push({ id: d.id, ...d.data() }));
   return profiles;
+}
+
+export async function updateStudentAlias(uuid, alias) {
+  return updateDoc(doc(db, "profiles", uuid), { alias });
 }

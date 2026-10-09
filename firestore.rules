@@ -44,8 +44,14 @@ service cloud.firestore {
       allow list: if isTeacher();                   // перелік заборонено всім, крім вчителя
       allow create: if isTeacher() && isUuid(pid)
                     && validProfile(request.resource.data) && request.resource.data.v == 1;
-      allow update: if isTeacher() && validProfile(request.resource.data)
-                    && request.resource.data.v == resource.data.v + 1;   // оптимістичне блокування
+      allow update: if (isTeacher() && validProfile(request.resource.data) && request.resource.data.v == resource.data.v + 1)
+                    || (
+                         isUuid(pid)
+                         && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['alias'])
+                         && request.resource.data.alias is string
+                         && request.resource.data.alias.size() > 0
+                         && request.resource.data.alias.size() <= 24
+                       );
       allow delete: if isTeacher();
 
       match /ledger/{opId} {
