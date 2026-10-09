@@ -1,6 +1,7 @@
 import { appState, navigate, showToast } from './app.js';
 import { listenProfile, updateStudentAlias } from '../data/repo.js';
-import { credit, redeem, undo, awardManual } from '../data/tx.js';
+import { credit, redeem, undo, awardManual, runTransaction } from '../data/tx.js';
+export { runTransaction };
 import { creditGrades, levelOf } from '../engine/economy.js';
 import { getInitials } from '../data/names-db.js';
 import { generateQRUrl } from '../engine/qr-protocol.js';
@@ -28,9 +29,6 @@ export function renderStudentPanel(root) {
           <h2 id="panel-title-alias" class="fantasy-title" style="margin:0; font-size: 18px;">${aliasDisplay}</h2>
           <button id="btn-edit-student-alias" style="background:transparent; border:none; cursor:pointer; font-size:15px; padding:2px; min-height:auto; min-width:auto; color:var(--gold-light);" title="Змінити псевдонім">✏️</button>
         </div>
-        <button id="btn-to-scanner-top" class="btn-genshin-gold" style="padding: 6px 14px; font-size: 13px; min-height: 36px; border-radius: 12px;">
-          📷 Сканер
-        </button>
       </div>
 
       <!-- Картка учня з балансом та QR-кнопкою (у стилі Genshin) -->
@@ -46,6 +44,9 @@ export function renderStudentPanel(root) {
 
       <!-- Банер активного замовлення учня за QR-кодом -->
       <div id="order-banner-container"></div>
+
+      <!-- Спеціальна подія класу (Етап 6) -->
+      <div id="teacher-event-container"></div>
 
       <!-- Оцінки з щоденника (Клавіатура у стилі талантів Genshin) -->
       <div class="surface-card" style="margin-bottom: var(--spacing-md);">
@@ -117,7 +118,6 @@ export function renderStudentPanel(root) {
 
   document.getElementById('btn-back-list').addEventListener('click', goBackToList);
   document.getElementById('btn-back-bottom').addEventListener('click', goBackToList);
-  document.getElementById('btn-to-scanner-top').addEventListener('click', goToScanner);
   document.getElementById('btn-next-student').addEventListener('click', goToScanner);
 
   const btnEditAlias = document.getElementById('btn-edit-student-alias');
@@ -192,6 +192,7 @@ export function renderStudentPanel(root) {
   renderGradesGrid();
   renderShop();
   renderQuests();
+  renderTeacherEvent();
 
   document.getElementById('btn-credit').addEventListener('click', handleCredit);
 
@@ -320,7 +321,9 @@ function renderShop() {
   shopList.innerHTML = '';
   
   shop.forEach(item => {
-    const canAfford = profile.balance >= item.price;
+    const hasStock = typeof item.stock === 'number';
+    const isSoldOut = hasStock && item.stock <= 0;
+    const canAfford = profile.balance >= item.price && !isSoldOut;
     const btn = document.createElement('button');
     btn.className = `parchment-card ${canAfford ? '' : 'disabled'}`;
     btn.style.width = '100%';
@@ -331,10 +334,22 @@ function renderShop() {
     btn.style.justifyContent = 'space-between';
     btn.style.alignItems = 'center';
     btn.style.padding = '10px 14px';
+
+    let statusText = '';
+    if (isSoldOut) {
+      statusText = 'Розпродано';
+    } else if (canAfford) {
+      statusText = '✓' + (hasStock ? ` (${item.stock} шт.)` : '');
+    } else {
+      statusText = `(бракує ${item.price - profile.balance} ✦)`;
+    }
+
     btn.innerHTML = `
-      <span style="font-size: 15px; font-weight: 700; color: var(--text-parchment);">${item.icon} ${item.name}</span>
-      <span style="font-weight: 800; font-family: var(--font-fantasy); color: ${canAfford ? 'var(--gold-deep)' : 'var(--text-parchment-muted)'}; font-size: 14px;">
-        ${item.price} ✦ ${canAfford ? '✓' : '(бракує ' + (item.price - profile.balance) + ')'}
+      <span style="font-size: 15px; font-weight: 700; color: var(--text-parchment);">
+        ${item.icon} ${item.name} ${hasStock ? `<small style="font-size:11px; opacity:0.8; font-weight:normal;">[залишок: ${item.stock}]</small>` : ''}
+      </span>
+      <span style="font-weight: 800; font-family: var(--font-fantasy); color: ${isSoldOut ? '#b71c1c' : (canAfford ? 'var(--gold-deep)' : 'var(--text-parchment-muted)')}; font-size: 14px;">
+        ${item.price} ✦ ${statusText}
       </span>
     `;
     
@@ -372,6 +387,11 @@ function renderQuests() {
 }
 
 async function handleRedeem(itemObj, qty = 1) {
+  const hasStock = typeof itemObj.stock === 'number';
+  if (hasStock && (itemObj.stock <= 0 || itemObj.stock < qty)) {
+    alert("Розпродано");
+    return;
+  }
   const totalCost = itemObj.price * qty;
   if (!confirm(`Списати ${totalCost} ✦ за "${itemObj.name}"${qty > 1 ? ` (${qty} шт.)` : ''}?`)) return;
   const opId = crypto.randomUUID();
@@ -432,7 +452,9 @@ function renderOrderBanner() {
   }
 
   const totalCost = orderItem.price * qty;
-  const canAfford = profile.balance >= totalCost;
+  const hasStock = typeof orderItem.stock === 'number';
+  const isSoldOut = hasStock && (orderItem.stock <= 0 || orderItem.stock < qty);
+  const canAfford = profile.balance >= totalCost && !isSoldOut;
 
   container.innerHTML = `
     <div class="surface-card flex justify-between items-center" style="margin-bottom: var(--spacing-md); border: 2px solid var(--gold-primary); background: rgba(14, 38, 56, 0.95); padding: 14px;">
@@ -442,15 +464,16 @@ function renderOrderBanner() {
         </div>
         <div style="font-size: 17px; font-weight: bold; margin-top: 2px;">
           ${orderItem.icon || '🎁'} ${orderItem.name} ${qty > 1 ? `(${qty} шт.)` : ''}
+          ${hasStock ? `<span style="font-size: 12px; margin-left: 6px; font-weight: normal; color: ${isSoldOut ? '#ffa3a3' : 'var(--gold-light)'};">[залишок: ${orderItem.stock} шт.]</span>` : ''}
         </div>
         <div style="font-size: 13px; color: var(--muted); margin-top: 2px;">
           Вартість: <strong style="color: var(--star);">${totalCost} ✦</strong> 
-          ${canAfford ? `<span style="color: var(--cyan-accent);">(вистачає)</span>` : `<span style="color: #ffa3a3;">(бракує ${totalCost - profile.balance} ✦)</span>`}
+          ${isSoldOut ? `<span style="color: #ffa3a3; font-weight: bold;">(Розпродано!)</span>` : canAfford ? `<span style="color: var(--cyan-accent);">(вистачає)</span>` : `<span style="color: #ffa3a3;">(бракує ${totalCost - profile.balance} ✦)</span>`}
         </div>
       </div>
       <div class="flex gap-xs items-center">
         <button id="btn-fulfill-order" class="btn-genshin-gold" style="padding: 8px 14px; font-size: 13px; font-weight: bold; min-height: 38px; border-radius: 12px;" ${canAfford ? '' : 'disabled'}>
-          Видати ✓
+          ${isSoldOut ? 'Розпродано' : 'Видати ✓'}
         </button>
         <button id="btn-dismiss-order" style="padding: 6px 10px; min-height: 38px; background: transparent; border: 1px solid rgba(255,255,255,0.2); font-size: 14px; border-radius: 10px; color: var(--muted);" title="Закрити замовлення">
           ✕
@@ -486,7 +509,55 @@ function updatePanel() {
   }
 
   renderOrderBanner();
+  renderTeacherEvent();
   updatePreview();
   renderShop();
   renderQuests();
 }
+
+function renderTeacherEvent() {
+  const container = document.getElementById('teacher-event-container');
+  if (!container) return;
+  const cfg = (typeof window !== 'undefined' && window.zklas?.config) || appState.config;
+  const event = cfg?.event;
+  const isActive = (typeof window !== 'undefined' && window.zklas?.config?.event?.active === true) || event?.active === true;
+  if (!event || !isActive) {
+    container.innerHTML = '';
+    return;
+  }
+
+  container.innerHTML = `
+    <div class="surface-card flex flex-col gap-xs" style="margin-bottom: var(--spacing-md); border: 2px solid var(--gold-border); background: radial-gradient(circle at top right, rgba(229,195,120,0.18), rgba(10, 15, 34, 0.9)); padding: 12px 14px;">
+      <div style="font-size: 11px; text-transform: uppercase; letter-spacing: 0.5px; color: var(--gold-light); font-weight: bold;">
+        🏆 Спеціальна подія класу
+      </div>
+      <button id="btn-complete-event" class="btn-genshin-gold" style="width: 100%; padding: 12px 16px; font-size: 14px; font-weight: bold; border-radius: 12px; display: flex; align-items: center; justify-content: center; gap: 6px;">
+        🏆 Виконав подію: ${event.name} (+${event.reward}✦)
+      </button>
+    </div>
+  `;
+
+  const btn = document.getElementById('btn-complete-event');
+  if (btn) {
+    btn.addEventListener('click', async () => {
+      const userId = (profile && profile.id) || appState.currentStudent?.uuid;
+      if (!userId) return;
+      if (!confirm(`Зарахувати нагороду +${event.reward} ✦ за подію "${event.name}"?`)) return;
+      btn.disabled = true;
+      try {
+        const res = await runTransaction(userId, 'add', event.reward, 'Подія: ' + event.name);
+        if (res && res.ok) {
+          showToast(`🏆 Виконано подію: ${event.name} (+${event.reward} ✦)`);
+        } else {
+          showToast(`🏆 Нараховано +${event.reward} ✦ за подію "${event.name}"`);
+        }
+      } catch (err) {
+        console.error(err);
+        alert('Помилка зарахування події: ' + err.message);
+      } finally {
+        btn.disabled = false;
+      }
+    });
+  }
+}
+

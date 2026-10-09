@@ -2,44 +2,99 @@ import { encodeR } from '../engine/qr-protocol.js';
 import { kyivParts } from '../engine/time.js';
 import { iconFiligreeDivider, iconPrimogem } from '../components/genshin-icons.js';
 
+function toast(msg) {
+  if (typeof window !== 'undefined' && typeof window.showStudentToast === 'function') {
+    window.showStudentToast(msg);
+  } else if (typeof document !== 'undefined') {
+    const el = document.getElementById('student-toast');
+    if (el) {
+      el.textContent = msg;
+      el.classList.add('show');
+      setTimeout(() => el.classList.remove('show'), 3500);
+    }
+  }
+}
+
+export function getWishlist() {
+  try {
+    if (typeof localStorage === 'undefined') return [];
+    const raw = localStorage.getItem('wishlist');
+    const parsed = raw ? JSON.parse(raw) : [];
+    return Array.isArray(parsed) ? parsed : [];
+  } catch {
+    return [];
+  }
+}
+
+export function saveWishlist(list) {
+  try {
+    if (typeof localStorage === 'undefined') return;
+    localStorage.setItem('wishlist', JSON.stringify(list));
+  } catch (e) {
+    console.warn('Failed to save wishlist', e);
+  }
+}
+
 export function renderShop(root, state) {
   const p = state.profile;
   const c = state.config;
   const shop = (c.shop || []).filter(item => item.active !== false);
+  const wishlist = getWishlist();
 
   root.innerHTML = `
     <div class="container">
       <div class="text-center" style="margin-bottom: var(--spacing-sm);">
         <h2 class="fantasy-title" style="margin: 0 0 4px 0; font-size: 22px;">Магазин нагород</h2>
         <p class="text-muted" style="margin: 0; font-size: 13px;">Обирай нагороду та покажи свій QR вчителю.</p>
+        <div style="font-size: 12px; color: var(--gold-light); margin-top: 4px;">
+          ❤️ Список бажань: <strong id="wishlist-counter">${wishlist.length}</strong>/3
+        </div>
         ${iconFiligreeDivider()}
       </div>
       
       <div class="flex flex-col gap-sm">
         ${shop.map(item => {
+          const hasStock = typeof item.stock === 'number';
+          const isSoldOut = hasStock && item.stock <= 0;
           const percent = Math.min(100, Math.floor((p.balance / item.price) * 100));
-          const canAfford = p.balance >= item.price;
-          const isSweet = item.category === 'sweet';
+          const canAfford = p.balance >= item.price && !isSoldOut;
+          const inWishlist = wishlist.some(id => String(id) === String(item.id));
           
           return `
-            <div class="parchment-card" style="padding: 14px 16px;">
+            <div class="parchment-card" style="padding: 14px 16px; opacity: ${isSoldOut ? '0.75' : '1'};">
               <div class="flex justify-between items-center" style="margin-bottom: 8px;">
                 <div class="flex items-center gap-sm">
                   <!-- Круглий золотий слот нагороди -->
-                  <div style="width: 44px; height: 44px; min-width: 44px; border-radius: 50%; background: radial-gradient(circle, #fff9ee 0%, #ebd7b2 100%); border: 1.5px solid var(--gold-deep); display: flex; align-items: center; justify-content: center; font-size: 24px; box-shadow: inset 0 1px 2px #fff, 0 2px 4px rgba(0,0,0,0.12);">
+                  <div style="width: 44px; height: 44px; min-width: 44px; border-radius: 50%; background: radial-gradient(circle, #fff9ee 0%, #ebd7b2 100%); border: 1.5px solid var(--gold-deep); display: flex; align-items: center; justify-content: center; font-size: 24px; box-shadow: inset 0 1px 2px #fff, 0 2px 4px rgba(0,0,0,0.12); ${isSoldOut ? 'filter: grayscale(0.8);' : ''}">
                     ${item.icon || '🎁'}
                   </div>
                   <div>
                     <div style="font-weight: 700; font-size: 15px; color: var(--text-parchment);">${item.name}</div>
-                    <span class="badge-tag">${isSweet ? 'Смаколик' : 'Привілей'}</span>
+                    <div class="flex items-center gap-xs" style="margin-top: 2px;">
+                      ${item.category ? `<span class="badge-tag">${item.category}</span>` : ''}
+                      ${hasStock ? `
+                        <span class="badge-tag" style="background: ${isSoldOut ? 'rgba(183, 28, 28, 0.12)' : 'rgba(33, 115, 70, 0.12)'}; color: ${isSoldOut ? '#b71c1c' : '#217346'}; border: 1px solid ${isSoldOut ? 'rgba(183, 28, 28, 0.3)' : 'rgba(33, 115, 70, 0.3)'}; font-weight: 700;">
+                          Залишилось: ${item.stock} шт.
+                        </span>
+                      ` : ''}
+                    </div>
                   </div>
                 </div>
 
                 <div style="text-align: right;">
-                  <div style="font-weight: 800; font-size: 17px; font-family: var(--font-fantasy); color: ${canAfford ? 'var(--ok)' : 'var(--text-parchment)'};">
-                    ${item.price} ✦
+                  <div class="flex items-center justify-end gap-xs">
+                    <button class="btn-wishlist" data-id="${item.id}" title="${inWishlist ? 'Видалити зі списку бажань' : 'Додати до списку бажань'}" style="background: transparent; border: none; font-size: 18px; cursor: pointer; padding: 2px 4px; line-height: 1; transition: transform 0.15s ease;" aria-label="Список бажань">
+                      ${inWishlist ? '❤️' : '🤍'}
+                    </button>
+                    <div style="font-weight: 800; font-size: 17px; font-family: var(--font-fantasy); color: ${isSoldOut ? 'var(--text-parchment-subtle)' : (canAfford ? 'var(--ok)' : 'var(--text-parchment)')};">
+                      ${item.price} ✦
+                    </div>
                   </div>
-                  ${canAfford ? `
+                  ${isSoldOut ? `
+                    <button class="btn-genshin-gold disabled" disabled style="padding: 5px 12px; font-size: 12px; min-height: 34px; margin-top: 4px; border-radius: 12px; opacity: 0.55; cursor: not-allowed; filter: grayscale(1);">
+                      Розпродано
+                    </button>
+                  ` : canAfford ? `
                     <button class="btn-order btn-genshin-gold" data-id="${item.id}" style="padding: 5px 12px; font-size: 12px; min-height: 34px; margin-top: 4px; border-radius: 12px;">
                       🎁 Замовити
                     </button>
@@ -51,7 +106,7 @@ export function renderShop(root, state) {
 
               <!-- Смуга накопичення до нагороди -->
               <div class="genshin-progress-track">
-                <div class="${canAfford ? 'genshin-progress-fill-cyan' : 'genshin-progress-fill-gold'}" style="width: ${percent}%;"></div>
+                <div class="${isSoldOut ? 'genshin-progress-fill-gold' : (canAfford ? 'genshin-progress-fill-cyan' : 'genshin-progress-fill-gold')}" style="width: ${isSoldOut ? 0 : percent}%;"></div>
               </div>
             </div>
           `;
@@ -89,6 +144,8 @@ export function renderShop(root, state) {
       </div>
     </div>
   `;
+
+  if (typeof document === 'undefined') return;
 
   const orderModal = document.getElementById('order-modal');
   const btnClose = document.getElementById('btn-close-order');
@@ -154,14 +211,48 @@ export function renderShop(root, state) {
 
       currentItem = item;
       currentQty = 1;
-      maxQty = Math.max(1, Math.floor(p.balance / item.price));
+      const affordableQty = Math.max(1, Math.floor(p.balance / item.price));
+      const hasStock = typeof item.stock === 'number';
+      maxQty = hasStock ? Math.min(item.stock, affordableQty) : affordableQty;
+      if (maxQty < 1) maxQty = 1;
 
       document.getElementById('order-icon').textContent = item.icon || '🎁';
       document.getElementById('order-title').textContent = item.name;
-      document.getElementById('order-price').textContent = `${item.price} ✦ за 1 шт.`;
+      const stockInfo = hasStock ? ` · Залишилось: ${item.stock} шт.` : '';
+      document.getElementById('order-price').textContent = `${item.price} ✦ за 1 шт.${stockInfo}`;
 
       updateOrderQR();
       orderModal.style.display = 'flex';
+    });
+  });
+
+  root.querySelectorAll('.btn-wishlist').forEach(btn => {
+    btn.addEventListener('click', (e) => {
+      e.stopPropagation();
+      const itemId = btn.dataset.id;
+      let currentWishlist = getWishlist();
+      const idx = currentWishlist.findIndex(id => String(id) === String(itemId));
+
+      if (idx !== -1) {
+        currentWishlist.splice(idx, 1);
+        saveWishlist(currentWishlist);
+        btn.textContent = '🤍';
+        btn.title = 'Додати до списку бажань';
+        toast('Видалено зі списку бажань');
+      } else {
+        if (currentWishlist.length >= 3) {
+          toast('Можна обрати щонайбільше 3 бажані нагороди!');
+          return;
+        }
+        currentWishlist.push(itemId);
+        saveWishlist(currentWishlist);
+        btn.textContent = '❤️';
+        btn.title = 'Видалити зі списку бажань';
+        toast('Додано до списку бажань ❤️');
+      }
+
+      const counter = document.getElementById('wishlist-counter');
+      if (counter) counter.textContent = currentWishlist.length;
     });
   });
 }

@@ -400,3 +400,425 @@ body::before {
   width: 100%;
   position: relative;
 }
+
+/* 9. Student Statistics & Progression Chart */
+.stats-chart-card {
+  background: rgba(18, 25, 52, 0.92);
+  backdrop-filter: blur(8px);
+  -webkit-backdrop-filter: blur(8px);
+  border: 1.5px solid var(--gold-border);
+  border-radius: var(--radius-lg);
+  padding: 14px;
+  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.45), inset 0 0 16px rgba(229, 195, 120, 0.06);
+  margin-bottom: var(--spacing-md);
+  position: relative;
+  overflow: hidden;
+}
+
+.stats-chart-card::before,
+.stats-chart-card::after {
+  content: "";
+  position: absolute;
+  width: 6px;
+  height: 6px;
+  background: var(--gold-primary);
+  transform: rotate(45deg);
+  opacity: 0.75;
+}
+.stats-chart-card::before { top: 7px; left: 7px; }
+.stats-chart-card::after { top: 7px; right: 7px; }
+
+.stats-chart-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 12px;
+  padding: 0 2px;
+}
+
+.stats-chart-legend {
+  display: flex;
+  align-items: center;
+  gap: var(--spacing-sm);
+  font-size: 11px;
+}
+
+.stats-legend-item {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  color: var(--muted);
+}
+
+.stats-kpi-grid {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: var(--spacing-xs);
+  margin-bottom: var(--spacing-sm);
+}
+
+@media (min-width: 440px) {
+  .stats-kpi-grid {
+    grid-template-columns: repeat(4, 1fr);
+  }
+}
+
+.stats-kpi-card {
+  background: rgba(11, 16, 36, 0.85);
+  border: 1px solid rgba(214, 181, 115, 0.22);
+  border-radius: var(--radius-md);
+  padding: 8px 6px;
+  text-align: center;
+  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.25);
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  align-items: center;
+}
+
+.stats-kpi-val {
+  font-family: var(--font-fantasy);
+  font-size: 20px;
+  font-weight: 800;
+  line-height: 1.1;
+  color: var(--gold-light);
+  text-shadow: 0 0 8px var(--gold-glow);
+}
+
+.stats-kpi-label {
+  font-size: 10px;
+  color: var(--muted);
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  margin-top: 2px;
+}
+
+.stats-svg-container {
+  overflow: hidden;
+  position: relative;
+}
+
+.genshin-stats-svg {
+  display: block;
+  user-select: none;
+}
+
+.zk-chart-point {
+  cursor: pointer;
+  transition: transform 0.15s ease;
+}
+
+.zk-chart-point:hover polygon,
+.zk-chart-point:focus polygon {
+  filter: drop-shadow(0 0 6px var(--gold-glow));
+  transform: scale(1.2);
+  transform-origin: center;
+}
+
+/* Grade Distribution Bars */
+.stats-distribution-grid {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.stats-dist-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 12px;
+}
+
+.stats-dist-badge {
+  font-family: var(--font-fantasy);
+  font-weight: 800;
+  width: 22px;
+  text-align: right;
+  font-size: 13px;
+  color: var(--gold-primary);
+}
+
+.stats-dist-track {
+  flex: 1;
+  height: 8px;
+  background: rgba(10, 14, 30, 0.7);
+  border-radius: 4px;
+  border: 1px solid rgba(214, 181, 115, 0.2);
+  overflow: hidden;
+}
+
+.stats-dist-fill {
+  height: 100%;
+  border-radius: 4px;
+  transition: width 0.35s ease;
+}
+
+.stats-dist-count {
+  width: 58px;
+  text-align: right;
+  color: var(--muted);
+  font-size: 11px;
+  white-space: nowrap;
+}
+
+/* 10. Admin Panel - Shop Item Management */
+.admin-shop-item {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  padding: 12px 14px;
+  transition: opacity 0.2s ease;
+}
+
+.shop-item-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+}
+
+.shop-item-info {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  min-width: 0;
+  flex: 1;
+}
+
+.shop-item-icon {
+  font-size: 26px;
+  line-height: 1;
+  flex-shrink: 0;
+}
+
+.shop-item-text {
+  min-width: 0;
+}
+
+.shop-item-title {
+  font-weight: 700;
+  font-size: 15px;
+  color: var(--text-parchment);
+  line-height: 1.25;
+}
+
+.shop-item-meta {
+  font-size: 11px;
+  margin-top: 2px;
+  color: var(--text-parchment-muted);
+}
+
+.shop-item-controls {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  padding-top: 8px;
+  border-top: 1px dashed rgba(181, 141, 60, 0.25);
+}
+
+.shop-controls-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.shop-price-group {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.shop-price-label {
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--text-parchment-muted);
+}
+
+.shop-price-input {
+  width: 58px !important;
+  min-height: 36px !important;
+  padding: 4px !important;
+  text-align: center;
+  font-weight: bold;
+  font-size: 15px;
+  background: #fff;
+  color: #222;
+  border: 1.5px solid var(--gold-deep);
+  border-radius: var(--radius-sm);
+  outline: none;
+}
+
+.shop-price-input:focus {
+  border-color: var(--gold-primary);
+  box-shadow: 0 0 6px var(--gold-glow);
+}
+
+.shop-price-currency {
+  color: var(--gold-deep);
+  font-weight: bold;
+  font-size: 15px;
+  font-family: var(--font-fantasy);
+}
+
+.shop-actions-group {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.btn-toggle-active {
+  padding: 6px 12px;
+  min-height: 36px;
+  font-size: 12px;
+  font-weight: 600;
+  border-radius: var(--radius-sm);
+  cursor: pointer;
+  border: 1px solid rgba(0, 0, 0, 0.1);
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  transition: all 0.15s ease;
+}
+
+.btn-toggle-active.is-active {
+  background: rgba(61, 220, 151, 0.2);
+  color: #137a4a;
+}
+
+.btn-toggle-active.is-hidden {
+  background: rgba(0, 0, 0, 0.08);
+  color: var(--text-parchment-muted);
+}
+
+.btn-toggle-active:hover {
+  filter: brightness(0.95);
+}
+
+.admin-shop-item .btn-delete-item {
+  padding: 6px 10px;
+  min-height: 36px;
+  min-width: 36px;
+  font-size: 13px;
+  border-radius: var(--radius-sm);
+}
+
+.shop-stock-row {
+  display: flex;
+  align-items: center;
+  width: 100%;
+}
+
+.shop-stock-control {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  background: rgba(0, 0, 0, 0.05);
+  padding: 5px 10px;
+  border-radius: var(--radius-sm);
+  border: 1px solid rgba(0, 0, 0, 0.09);
+  width: 100%;
+  box-sizing: border-box;
+}
+
+.shop-stock-toggle-label {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  cursor: pointer;
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--text-parchment);
+  user-select: none;
+}
+
+.shop-stock-toggle-label input[type="checkbox"] {
+  width: 18px !important;
+  height: 18px !important;
+  min-height: 18px !important;
+  margin: 0;
+  cursor: pointer;
+  accent-color: var(--gold-deep);
+}
+
+.shop-stock-input-wrap {
+  align-items: center;
+  gap: 4px;
+}
+
+.shop-stock-input {
+  width: 56px !important;
+  min-height: 32px !important;
+  padding: 2px 4px !important;
+  text-align: center;
+  font-weight: bold;
+  font-size: 13px;
+  background: #fff;
+  color: #222;
+  border: 1px solid var(--gold-deep);
+  border-radius: var(--radius-sm);
+  outline: none;
+}
+
+.shop-stock-input:focus {
+  border-color: var(--gold-primary);
+  box-shadow: 0 0 6px var(--gold-glow);
+}
+
+.shop-stock-unit {
+  font-size: 11px;
+  color: var(--text-parchment-muted);
+}
+
+/* ==========================================================================
+   11. Animations & Tactile Feedback (Етап 7)
+   ========================================================================== */
+
+/* Tactile button & card squeezing effect on click (:active) */
+.btn-genshin-gold,
+.btn-genshin-crimson,
+.nav-btn,
+.genshin-nav-btn,
+.btn-wishlist,
+.btn-toggle-active,
+.grade-btn,
+.btn-delete-item,
+.clickable-card,
+#nearest-quest-card {
+  transition: transform 0.1s ease, filter 0.1s ease, box-shadow 0.1s ease;
+}
+
+.btn-genshin-gold:active,
+.btn-genshin-crimson:active,
+.nav-btn:active,
+.genshin-nav-btn:active,
+.btn-wishlist:active,
+.btn-toggle-active:active,
+.grade-btn:active,
+.btn-delete-item:active,
+.clickable-card:active,
+#nearest-quest-card:active {
+  transform: scale(0.95);
+  filter: brightness(0.9);
+}
+
+/* Central star collection pulse animation */
+@keyframes starPulseAnim {
+  0% {
+    transform: scale(1) rotate(0deg);
+  }
+  40% {
+    transform: scale(1.18) rotate(12deg);
+    filter: drop-shadow(0 0 20px rgba(255, 230, 130, 0.95)) brightness(1.25);
+  }
+  100% {
+    transform: scale(1) rotate(0deg);
+  }
+}
+
+.star-pulse-anim {
+  display: inline-flex;
+  transform-origin: center;
+  animation: starPulseAnim 0.35s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+}
