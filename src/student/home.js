@@ -46,7 +46,7 @@ export function renderNearestQuestBlock(p, c) {
       <div class="flex justify-between items-center" style="margin-bottom: 8px;">
         <div class="flex items-center gap-xs">
           <span class="badge-tag" style="background: rgba(229,195,120,0.2); color: var(--text-parchment); border: 1px solid var(--gold-deep); font-weight: 700;">
-            ${best.isLifetime ? 'Досягнення' : (best.isWeekly ? 'Тижневий' : 'Місячний')}
+            ${best.isLifetime ? 'Досягнення' : (best.isWeekly ? 'Тиждень' : 'Місяць')}
           </span>
           <span style="font-size: 12px; color: var(--text-parchment-muted);">Рекомендоване завдання</span>
         </div>
