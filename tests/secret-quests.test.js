@@ -90,6 +90,15 @@ describe('Secret Quests & Solo Leveling Overdrive System (Stage B)', () => {
     const t = Date.parse('2026-10-12T10:00:00Z');
     const { week } = kyivParts(t);
 
+    test('До завершення батьківського квесту (2 оцінки при цілі 4) секретний квест заблокований', () => {
+      const p = emptyProfile();
+      p.counters[week] = { gradeCount: 2 };
+
+      const secState = getQuestSecretState(p, secretOverdrive, allQuests, { nowMs: t });
+      assert.strictEqual(secState.isLocked, true);
+      assert.strictEqual(secState.isRevealed, false);
+    });
+
     test('При менше ніж unlockAt (6 оцінок) секретний квест заблокований', () => {
       const p = emptyProfile();
       p.counters[week] = { gradeCount: 6 };
@@ -197,7 +206,7 @@ describe('Secret Quests & Solo Leveling Overdrive System (Stage B)', () => {
       assert.ok(!root.innerHTML.includes('Академічний штурм'));
     });
 
-    test('renderQuests: пробуджений секретний квест рендериться у стилі solo-system-card', () => {
+    test('renderQuests: пробуджений секретний квест рендериться у стилі genshin-astral-card', () => {
       const p = emptyProfile();
       p.counters[week] = { gradeCount: 7 }; // розблоковано
 
@@ -205,10 +214,25 @@ describe('Secret Quests & Solo Leveling Overdrive System (Stage B)', () => {
       const root = { innerHTML: '' };
       renderQuests(root, state);
 
-      assert.ok(root.innerHTML.includes('solo-system-card'), 'Має бути клас solo-system-card');
-      assert.ok(root.innerHTML.includes('[СИСТЕМНЕ СПОВІЩЕННЯ]'));
-      assert.ok(root.innerHTML.includes('ОВЕРДРАЙВ +3 ✦'));
+      assert.ok(root.innerHTML.includes('genshin-astral-card'), 'Має бути клас genshin-astral-card');
+      assert.ok(root.innerHTML.includes('badge-astral'), 'Має бути клас badge-astral');
+      assert.ok(root.innerHTML.includes('✦ ТАЄМНЕ ДОРУЧЕННЯ'), 'Повинен бути бейдж таємного доручення');
+      assert.ok(root.innerHTML.includes('+3 ✦'), 'Повинна бути нагорода +3 ✦');
       assert.ok(root.innerHTML.includes('Академічний штурм'));
+      assert.ok(!root.innerHTML.includes('[СИСТЕМНЕ СПОВІЩЕННЯ]'), 'Не повинно бути старого сай-фай тексту');
+      assert.ok(!root.innerHTML.includes('ОВЕРДРАЙВ'), 'Не повинно бути старого напису ОВЕРДРАЙВ');
+    });
+
+    test('getDisplayQuests: розблокований секрет заміщує батьківський квест в одному слоті без дублювання', () => {
+      const p = emptyProfile();
+      p.counters[week] = { gradeCount: 7 }; // розблоковано secret_academic_overdrive
+
+      const display = getDisplayQuests(cfg.quests, p, { nowMs: t });
+      assert.ok(display.some(q => q.id === 'secret_academic_overdrive'), 'Секретний квест повинен бути у списку');
+      assert.ok(!display.some(q => q.id === 'knowledge_gatherer'), 'Батьківський квест повинен бути заміщений і не дублюватися');
+      const baseCount = cfg.quests.filter(q => !q.secret && q.period !== 'lifetime').length;
+      const weeklyMonthlyDisplayCount = display.filter(q => q.period !== 'lifetime').length;
+      assert.strictEqual(weeklyMonthlyDisplayCount, baseCount, 'Кількість квестів не повинна подвоюватися');
     });
 
     test('findNearestQuest та renderNearestQuestBlock: виділяє пробуджений секретний квест у стилі Solo Leveling', () => {

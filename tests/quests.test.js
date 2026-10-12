@@ -255,6 +255,32 @@ describe('Expanded Quests System (Stage 3)', () => {
       // Тільки 6✦ за саму оцінку
       assert.strictEqual(res.delta, 6);
     });
+
+    test('validateQuest для target_grade (Блискучий результат) відображає ціль за лімітом (2), а не 12', () => {
+      const p = emptyProfile();
+      const t = Date.parse('2026-10-05T10:00:00Z');
+      const bQuest = brilliantCfg.quests[0];
+
+      // До отримання оцінки: 0 / 2 (0%)
+      const val0 = validateQuest(p, bQuest, { nowMs: t });
+      assert.strictEqual(val0.target, 2, 'Ціль повинна бути 2 (ліміт разів/тиждень), а не 12');
+      assert.strictEqual(val0.progress, 0);
+      assert.strictEqual(val0.percent, 0);
+
+      // Після нагородження 1 раз: 1 / 2 (50%)
+      p.counters['26W41'] = { brilliant_result: 1 };
+      const val1 = validateQuest(p, bQuest, { nowMs: t });
+      assert.strictEqual(val1.target, 2);
+      assert.strictEqual(val1.progress, 1);
+      assert.strictEqual(val1.percent, 50);
+
+      // Після нагородження 2 рази: 2 / 2 (100%)
+      p.counters['26W41'] = { brilliant_result: 2 };
+      const val2 = validateQuest(p, bQuest, { nowMs: t });
+      assert.strictEqual(val2.target, 2);
+      assert.strictEqual(val2.progress, 2);
+      assert.strictEqual(val2.percent, 100);
+    });
   });
 
   describe('5. "Впевнений крок" (monthly_growth: середній бал місяця вищий за попередній + >= 10 оцінок -> 10✦)', () => {
@@ -415,6 +441,22 @@ describe('Expanded Quests System (Stage 3)', () => {
       const valW2 = validateQuest(p, qWeekly, { nowMs: tWeek2 });
       assert.strictEqual(valW2.eligible, false);
       assert.strictEqual(valW2.current, 0);
+    });
+
+    test('validateQuest для monthly_average з minMonthlyGrades не дає 100% при нестачі оцінок', () => {
+      const p = emptyProfile();
+      const t = Date.parse('2026-10-15T10:00:00Z');
+      const olympusQuest = {
+        id: 'secret_olympus_eleven',
+        type: 'monthly_average',
+        params: { minAverage: 11.2, minMonthlyGrades: 14 }
+      };
+      // Учень має 7 оцінок 12 (середній бал 12.0 > 11.2, але 7 < 14)
+      p.counters['2610'] = { gradeCount: 7, gradeSum: 84 };
+
+      const val = validateQuest(p, olympusQuest, { nowMs: t });
+      assert.strictEqual(val.eligible, false, 'Не повинен бути eligible при 7 оцінках із 14');
+      assert.strictEqual(val.percent, 50, 'Відсоток повинен бути 50% (7/14), а не 100%');
     });
   });
 

@@ -49,9 +49,9 @@ export function getProfileGradeItems(p, fallbackGrade = null, fallbackMs = null)
   } else if (Array.isArray(p.recent) && p.recent.length > 0) {
     items = p.recent.map((g, idx) => {
       if (typeof g === 'number') {
-        return { grade: g, ts: fallbackMs ?? null, order: idx };
+        return { grade: g, ts: null, order: idx };
       }
-      return g;
+      return { ...g, ts: g.ts ?? null };
     });
   }
   return items;
@@ -84,12 +84,13 @@ export function validateQuest(p, q, contextOrMs = {}) {
   const isLimitReached = timesAwarded >= limit;
 
   // Нормалізовані оцінки учня
-  const rawItems = context.items || getProfileGradeItems(p, g, nowMs);
+  const rawItems = context.items || getProfileGradeItems(p, g, null);
   const items = normalizeGrades(rawItems);
 
   let eligible = false;
   let progress = 0;
   let target = 1;
+  let customPercent = null;
 
   switch (q.type) {
     case 'daily_hot': {
@@ -147,20 +148,16 @@ export function validateQuest(p, q, contextOrMs = {}) {
         target = q.params.targetCount;
         let count12 = 0;
         for (const item of items) {
-          if (item.grade === reqGrade) {
-            if (item.ts != null) {
-              if (kyivParts(item.ts).week === targetWeek) count12++;
-            } else {
-              count12++;
-            }
+          if (item.grade === reqGrade && item.ts != null) {
+            if (kyivParts(item.ts).week === targetWeek) count12++;
           }
         }
         progress = count12;
         eligible = progress >= target;
       } else {
-        target = reqGrade;
-        progress = g != null ? g : 0;
-        eligible = g != null && g === target;
+        target = limit;
+        progress = timesAwarded;
+        eligible = g != null && g === reqGrade && timesAwarded < limit;
       }
       break;
     }
@@ -213,7 +210,14 @@ export function validateQuest(p, q, contextOrMs = {}) {
         currStats = calculatePeriodAverage(items, { targetMonth: targetMonth });
       }
       progress = currStats.average;
-      eligible = currStats.hasData && currStats.count >= (q.params?.minMonthlyGrades ?? 1) && currStats.average > minAvg;
+      const minGrades = q.params?.minMonthlyGrades;
+      const count = currStats.hasData ? (currStats.count || 0) : 0;
+      if (minGrades != null && count < minGrades) {
+        eligible = false;
+        customPercent = Math.min(99, Math.floor((count / minGrades) * 100));
+      } else {
+        eligible = currStats.hasData && count >= (minGrades ?? 1) && (minGrades != null ? currStats.average >= minAvg : currStats.average > minAvg);
+      }
       break;
     }
 
@@ -241,7 +245,9 @@ export function validateQuest(p, q, contextOrMs = {}) {
       break;
   }
 
-  const percent = target > 0 ? Math.min(100, Math.floor((progress / target) * 100)) : (eligible ? 100 : 0);
+  const percent = customPercent !== null
+    ? customPercent
+    : (target > 0 ? Math.min(100, Math.floor((progress / target) * 100)) : (eligible ? 100 : 0));
 
   return {
     eligible,
@@ -402,15 +408,11 @@ function getRevealProgress(p, parentQuest, secretQuest, ctx, items, targetWeek, 
     baseTarget = parentQuest.perWeek ?? parentQuest.limit ?? 2;
     let countGrade = 0;
     for (const item of items) {
-      if (item.grade === targetGrade) {
-        if (item.ts != null) {
-          if (kyivParts(item.ts).week === targetWeek) countGrade++;
-        } else {
-          countGrade++;
-        }
+      if (item.grade === targetGrade && item.ts != null) {
+        if (kyivParts(item.ts).week === targetWeek) countGrade++;
       }
     }
-    const awarded = p.counters?.[targetWeek]?.[parentQuest.id] ?? 0;
+    const awarded = p.counters?.[targetWeek]?.[parentQuest.id] ?? p.counters?.[targetWeek]?.['brilliant_result'] ?? 0;
     revealCurrent = Math.max(countGrade, awarded);
   } else if (parentQuest.type === 'monthly_average' || parentQuest.type === 'period_average') {
     baseTarget = parentQuest.params?.minAverage ?? 10;
@@ -447,7 +449,7 @@ export function getQuestSecretState(p, quest, allQuests = [], context = {}) {
   const targetMonth = ctx.month ?? parts.month;
   const targetWeek = ctx.week ?? parts.week;
 
-  const rawItems = ctx.items || getProfileGradeItems(p, ctx.g ?? null, nowMs);
+  const rawItems = ctx.items || getProfileGradeItems(p, ctx.g ?? null, null);
   const items = normalizeGrades(rawItems);
 
   // 1. Якщо це секретний квест (q.secret або має parentQuestId)
@@ -455,16 +457,19 @@ export function getQuestSecretState(p, quest, allQuests = [], context = {}) {
     const parent = allQuests.find(q => q.id === quest.parentQuestId);
     const unlockAt = quest.unlockAt ?? 0;
     let revealCurrent = 0;
+    let isParentDone = true;
 
     if (parent) {
       const prog = getRevealProgress(p, parent, quest, ctx, items, targetWeek, targetMonth);
       revealCurrent = prog.revealCurrent;
+      const parentVal = validateQuest(p, parent, ctx);
+      isParentDone = parentVal.completed || parentVal.limitReached || (parentVal.timesAwarded >= parentVal.limit) || (prog.revealCurrent >= prog.baseTarget);
     } else {
       const val = validateQuest(p, quest, ctx);
       revealCurrent = val.progress;
     }
 
-    if (revealCurrent < unlockAt) {
+    if (!isParentDone || revealCurrent < unlockAt) {
       return {
         isLocked: true,
         isRevealed: false,

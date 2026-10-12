@@ -8,8 +8,8 @@ import {
   iconPrimogem 
 } from '../components/genshin-icons.js';
 
-export function getDisplayQuests(quests, p = {}) {
-  const lifetimeQuests = quests.filter(q => q.type === 'lifetime_milestone' || q.period === 'lifetime');
+export function getDisplayQuests(quests, p = {}, context = {}) {
+  const lifetimeQuests = quests.filter(q => (q.type === 'lifetime_milestone' || q.period === 'lifetime') && !q.secret);
   lifetimeQuests.sort((a, b) => (a.target || 0) - (b.target || 0));
 
   const nextLifetimeQuest = lifetimeQuests.find(q => {
@@ -17,18 +17,31 @@ export function getDisplayQuests(quests, p = {}) {
     return !isDone;
   });
 
-  return quests.filter(q => {
-    if (q.secret) {
-      const secState = getQuestSecretState(p, q, quests);
-      if (secState.isLocked) return false;
-    }
+  const baseQuests = quests.filter(q => !q.secret);
+  const result = [];
+
+  for (const q of baseQuests) {
     const isLife = q.type === 'lifetime_milestone' || q.period === 'lifetime';
-    if (!isLife) return true;
-    if (nextLifetimeQuest) {
-      return q.id === nextLifetimeQuest.id;
+    if (isLife) {
+      if (nextLifetimeQuest) {
+        if (q.id !== nextLifetimeQuest.id) continue;
+      } else if (lifetimeQuests.length > 0 && q.id !== lifetimeQuests[lifetimeQuests.length - 1].id) {
+        continue;
+      }
     }
-    return lifetimeQuests.length > 0 && q.id === lifetimeQuests[lifetimeQuests.length - 1].id;
-  });
+
+    const sq = quests.find(x => x.parentQuestId === q.id);
+    if (sq) {
+      const secState = getQuestSecretState(p, sq, quests, context);
+      if (!secState.isLocked && secState.isRevealed) {
+        result.push(sq);
+        continue;
+      }
+    }
+    result.push(q);
+  }
+
+  return result;
 }
 
 export function renderQuests(root, state) {
@@ -50,7 +63,7 @@ export function renderQuests(root, state) {
   if (dailyQuest) {
     const dailyDone = (p.counters?.[ymd]?.[dailyQuest.id] || 0) >= (dailyQuest.limit ?? 1);
     dailyCheckinHtml = `
-      <div class="parchment-card" style="margin-bottom: var(--spacing-sm); padding: 12px 16px; background: linear-gradient(135deg, rgba(255, 235, 180, 0.25) 0%, rgba(255, 255, 255, 0.7) 100%); border: 1.5px solid var(--gold-border);">
+      <div class="parchment-card" style="margin-bottom: var(--spacing-sm); padding: 12px 16px; background: var(--surface-parchment); border: 1.5px solid var(--gold-border);">
         <div class="flex justify-between items-center">
           <div class="flex items-center gap-sm">
             <span style="font-size: 26px;">⚡</span>
@@ -62,13 +75,13 @@ export function renderQuests(root, state) {
               <div style="font-size: 11px; color: var(--text-parchment-muted); margin-top: 1px;">${dailyQuest.desc}</div>
             </div>
           </div>
-          <div>
+          <div style="flex-shrink: 0; white-space: nowrap;">
             ${dailyDone ? `
-              <span class="badge-tag" style="background: rgba(62, 207, 146, 0.15); color: var(--ok); border: 1px solid var(--ok); font-weight: 800; font-size: 12px; padding: 4px 10px;">
+              <span class="badge-tag" style="background: rgba(62, 207, 146, 0.15); color: var(--ok); border: 1px solid var(--ok); font-weight: 800; font-size: 12px; padding: 4px 10px; white-space: nowrap;">
                 ✓ Виконано
               </span>
             ` : `
-              <span class="badge-gold" style="font-size: 13px; font-weight: 800; padding: 3px 9px; border-radius: 12px;">
+              <span class="badge-gold" style="white-space: nowrap; display: inline-flex; align-items: center; gap: 4px; font-size: 13px; font-weight: 800; padding: 3px 9px; border-radius: 12px;">
                 +${dailyQuest.reward} ✦
               </span>
             `}
@@ -78,7 +91,7 @@ export function renderQuests(root, state) {
     `;
   }
 
-  const displayQuests = getDisplayQuests(quests, p).filter(q => q.id !== dailyQuest?.id);
+  const displayQuests = getDisplayQuests(quests, p, { nowMs, month, week }).filter(q => q.id !== dailyQuest?.id);
 
   root.innerHTML = `
     <div class="container">
@@ -97,7 +110,7 @@ export function renderQuests(root, state) {
             </span>
             <span style="font-weight: 700; font-size: 14px; color: var(--text-parchment);">Зароблено бонусних зірок у цьому місяці:</span>
           </div>
-          <span style="font-weight: 800; font-size: 16px; font-family: var(--font-fantasy); color: var(--gold-deep);">
+          <span style="flex-shrink: 0; white-space: nowrap; display: inline-flex; align-items: center; gap: 4px; font-weight: 800; font-size: 16px; font-family: var(--font-fantasy); color: var(--gold-deep);">
             +${monthStars} ✦
           </span>
         </div>
@@ -115,27 +128,23 @@ export function renderQuests(root, state) {
             if (secState.isLocked) return '';
             const val = secState.val || validateQuest(p, quest, { nowMs, month, week });
             return `
-              <div class="solo-system-card" style="margin-bottom: 12px;">
+              <div class="genshin-astral-card">
                 <div class="flex justify-between items-center" style="margin-bottom: 8px;">
-                  <span class="system-badge">
-                    <span style="font-size: 12px;">⚡</span> [СИСТЕМНЕ СПОВІЩЕННЯ]
-                  </span>
-                  <span class="system-overdrive-badge">
-                    ОВЕРДРАЙВ +${quest.reward} ✦
-                  </span>
+                  <span class="badge-astral">✦ ТАЄМНЕ ДОРУЧЕННЯ</span>
+                  <span class="badge-gold" style="white-space: nowrap; display: inline-flex; align-items: center; gap: 4px; font-size: 13px; font-weight: 800; padding: 3px 9px; border-radius: 12px;">+${quest.reward} ✦</span>
                 </div>
-                <div style="font-weight: 800; font-size: 16px; color: #fff; margin-bottom: 3px; font-family: var(--font-fantasy);">
+                <div style="font-family: var(--font-fantasy); color: var(--gold-light); font-size: 16px; font-weight: 800; margin-bottom: 3px;">
                   ${quest.title}
                 </div>
-                <div style="font-size: 12px; color: #94a3b8; line-height: 1.35; margin-bottom: 10px;">
+                <div style="font-size: 12px; color: #c5cee8; line-height: 1.35; margin-bottom: 10px;">
                   ${quest.desc}
                 </div>
-                <div class="flex justify-between" style="font-size: 11px; color: var(--system-blue);">
+                <div class="flex justify-between" style="font-size: 11px; color: var(--cyan-accent); margin-bottom: 4px;">
                   <span>Прогрес доручення:</span>
                   <span style="font-weight: 800;">${val.progress} / ${val.target} (${val.percent}%)</span>
                 </div>
-                <div class="system-progress-track">
-                  <div class="system-progress-fill" style="width: ${val.percent}%;"></div>
+                <div class="genshin-progress-track">
+                  <div class="genshin-progress-fill-cyan" style="width: ${val.percent}%;"></div>
                 </div>
               </div>
             `;
@@ -210,7 +219,7 @@ export function renderQuests(root, state) {
                 </div>
 
                 <!-- Золотий бейдж нагороди +3 ✦ -->
-                <div class="badge-gold" style="white-space: nowrap; font-size: 14px; padding: 4px 10px; border-radius: 14px;">
+                <div class="badge-gold" style="flex-shrink: 0; white-space: nowrap; display: inline-flex; align-items: center; gap: 4px; font-size: 14px; padding: 4px 10px; border-radius: 14px;">
                   +${quest.reward} ✦
                 </div>
               </div>
