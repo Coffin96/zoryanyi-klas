@@ -49,17 +49,10 @@ describe('Admin Panel Shop UI & Layout Tests', () => {
     assert.ok(baseCss.includes('.btn-toggle-active'), 'base.css has .btn-toggle-active');
   });
 
-  test('Stage 8: admin.js contains v2 database migration section, button and handler', async () => {
-    assert.ok(adminJs.includes("import { defaultConfig } from '../data/default-config.js';"), 'Imports defaultConfig');
-    assert.ok(adminJs.includes('🔧 Системні налаштування'), 'Includes System Settings section title');
-    assert.ok(adminJs.includes('btn-migrate-v2'), 'Includes migration button id btn-migrate-v2');
-    assert.ok(adminJs.includes('⚠️ Оновити базу квестів та титулів (v2.0)'), 'Includes migration button text');
-    assert.ok(adminJs.includes("confirm('Увага! Це безпечно оновить квести, ліміти та титули в базі Firebase на основі нових файлів проекту. Ваші ціни в магазині та Спеціальні події залишаться недоторканими. Продовжити?')"), 'Asks for explicit confirmation');
-    assert.ok(adminJs.includes('quests: defaultConfig.quests'), 'Updates quests from defaultConfig');
-    assert.ok(adminJs.includes('levels: defaultConfig.levels'), 'Updates levels from defaultConfig');
-    assert.ok(adminJs.includes('questWeeklyCap: defaultConfig.questWeeklyCap'), 'Updates questWeeklyCap from defaultConfig');
-    assert.ok(adminJs.includes('questMonthlyCap: defaultConfig.questMonthlyCap'), 'Updates questMonthlyCap from defaultConfig');
-    assert.ok(adminJs.includes("showToast('Базу успішно оновлено до v2.0!')"), 'Shows success toast after migration');
+  test('Stage 8: migration button removed and defaultConfig remains valid', async () => {
+    assert.ok(!adminJs.includes('btn-migrate-v2'), 'Migration button has been removed from admin.js');
+    assert.ok(!adminJs.includes('🔧 Системні налаштування'), 'System settings migration block has been removed');
+    assert.ok(!adminJs.includes("import { defaultConfig } from '../data/default-config.js';"), 'Unused defaultConfig import removed');
 
     // Verify fields exist in defaultConfig
     const { defaultConfig } = await import('../src/data/default-config.js');

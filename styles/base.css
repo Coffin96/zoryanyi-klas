@@ -822,3 +822,112 @@ body::before {
   transform-origin: center;
   animation: starPulseAnim 0.35s cubic-bezier(0.175, 0.885, 0.32, 1.275);
 }
+
+/* ==========================================================================
+   12. Solo Leveling & Dynamic Mist Styles (Етап Б)
+   ========================================================================== */
+
+.quest-fog-container {
+  position: relative;
+  overflow: hidden;
+  border-radius: 16px;
+}
+.quest-fog-overlay {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  text-align: center;
+  padding: 12px;
+  backdrop-filter: blur(5px);
+  -webkit-backdrop-filter: blur(5px);
+  transition: background 0.4s ease, color 0.4s ease;
+  z-index: 2;
+  border-radius: 16px;
+}
+.fog-white {
+  background: linear-gradient(135deg, rgba(255, 255, 255, 0.82) 0%, rgba(245, 238, 220, 0.9) 100%);
+  color: #2d241c;
+  border: 1.5px solid rgba(229, 195, 120, 0.8);
+}
+.fog-twilight {
+  background: linear-gradient(135deg, rgba(24, 34, 77, 0.88) 0%, rgba(42, 31, 84, 0.92) 100%);
+  color: #e0e7ff;
+  border: 1.5px solid rgba(0, 210, 255, 0.6);
+  box-shadow: inset 0 0 15px rgba(0, 210, 255, 0.2);
+}
+.fog-abyss {
+  background: linear-gradient(135deg, rgba(10, 12, 28, 0.95) 0%, rgba(26, 11, 46, 0.96) 100%);
+  color: #f3e8ff;
+  border: 1.5px solid #9d4edd;
+  box-shadow: inset 0 0 20px rgba(157, 78, 221, 0.4);
+}
+
+.solo-system-card {
+  position: relative;
+  background: linear-gradient(145deg, #070a18 0%, #0d122b 60%, #150d2a 100%);
+  border: 1.5px solid var(--system-blue);
+  border-radius: 14px;
+  padding: 16px;
+  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.5), 0 0 15px var(--system-blue-glow);
+  color: #f0f6fc;
+  overflow: hidden;
+  transition: transform 0.2s ease, box-shadow 0.2s ease;
+}
+.solo-system-card::before {
+  content: "";
+  position: absolute;
+  top: 0; left: 0; right: 0;
+  height: 2px;
+  background: linear-gradient(90deg, transparent, var(--system-blue), var(--system-purple), transparent);
+  animation: systemScan 3s linear infinite;
+}
+@keyframes systemScan {
+  0% { opacity: 0.3; }
+  50% { opacity: 1; }
+  100% { opacity: 0.3; }
+}
+.system-badge {
+  font-family: 'Consolas', monospace;
+  font-size: 11px;
+  font-weight: 800;
+  letter-spacing: 0.5px;
+  padding: 3px 8px;
+  border-radius: 6px;
+  background: rgba(0, 210, 255, 0.15);
+  color: var(--system-blue);
+  border: 1px solid var(--system-blue);
+  text-shadow: 0 0 8px var(--system-blue-glow);
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+}
+.system-overdrive-badge {
+  font-family: 'Consolas', monospace;
+  font-size: 13px;
+  font-weight: 800;
+  padding: 4px 10px;
+  border-radius: 12px;
+  background: linear-gradient(135deg, rgba(157, 78, 221, 0.3), rgba(0, 210, 255, 0.3));
+  color: #fff;
+  border: 1px solid var(--system-purple);
+  box-shadow: 0 0 10px var(--system-purple-glow);
+}
+.system-progress-track {
+  width: 100%;
+  height: 8px;
+  background: rgba(255, 255, 255, 0.1);
+  border-radius: 4px;
+  overflow: hidden;
+  margin-top: 6px;
+}
+.system-progress-fill {
+  height: 100%;
+  background: linear-gradient(90deg, var(--system-blue) 0%, var(--system-purple) 100%);
+  border-radius: 4px;
+  box-shadow: 0 0 8px var(--system-blue-glow);
+  transition: width 0.3s ease;
+}
+

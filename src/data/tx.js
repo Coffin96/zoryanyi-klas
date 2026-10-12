@@ -36,6 +36,7 @@ async function runOp(uuid, opId, cfg, opFn) {
     nextProfile.lastOp = opId;
 
     // 2. Оновлення профілю
+    delete nextProfile.grades;
     tx.update(pRef, nextProfile);
 
     // 3. Запис у журнал (ledger)

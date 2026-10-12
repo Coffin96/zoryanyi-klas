@@ -1,5 +1,5 @@
 import { kyivParts } from '../engine/time.js';
-import { validateQuest } from '../engine/quests.js';
+import { validateQuest, getQuestSecretState } from '../engine/quests.js';
 import { 
   iconFiligreeDivider, 
   iconFlame, 
@@ -8,23 +8,77 @@ import {
   iconPrimogem 
 } from '../components/genshin-icons.js';
 
+export function getDisplayQuests(quests, p = {}) {
+  const lifetimeQuests = quests.filter(q => q.type === 'lifetime_milestone' || q.period === 'lifetime');
+  lifetimeQuests.sort((a, b) => (a.target || 0) - (b.target || 0));
+
+  const nextLifetimeQuest = lifetimeQuests.find(q => {
+    const isDone = Math.max(p.counters?.lifetime?.[q.id] || 0, p.stats?.quests?.[q.id] || 0) >= (q.limit ?? 1);
+    return !isDone;
+  });
+
+  return quests.filter(q => {
+    if (q.secret) {
+      const secState = getQuestSecretState(p, q, quests);
+      if (secState.isLocked) return false;
+    }
+    const isLife = q.type === 'lifetime_milestone' || q.period === 'lifetime';
+    if (!isLife) return true;
+    if (nextLifetimeQuest) {
+      return q.id === nextLifetimeQuest.id;
+    }
+    return lifetimeQuests.length > 0 && q.id === lifetimeQuests[lifetimeQuests.length - 1].id;
+  });
+}
+
 export function renderQuests(root, state) {
   const p = state.profile;
   const c = state.config;
   const quests = (c.quests || []).filter(q => q.active);
   const nowMs = Date.now();
-  const { month, week } = kyivParts(nowMs);
+  const { month, week, ymd } = kyivParts(nowMs);
   
   // Тижневі та місячні лічильники
   const weekCounters = (p.counters && p.counters[week]) || {};
   const monthCounters = (p.counters && p.counters[month]) || {};
   
-  const weekStars = weekCounters.questStars || 0;
-  const weeklyCap = c.questWeeklyCap || 6;
   const monthStars = monthCounters.questStars || 0;
-  const monthlyCap = c.questMonthlyCap || 8;
-  
-  const capPercent = Math.min(100, Math.floor((monthStars / monthlyCap) * 100));
+
+  // Щоденний квест (чекін)
+  const dailyQuest = quests.find(q => q.type === 'daily_hot' || q.id === 'secret_daily_hot' || q.period === 'daily');
+  let dailyCheckinHtml = '';
+  if (dailyQuest) {
+    const dailyDone = (p.counters?.[ymd]?.[dailyQuest.id] || 0) >= (dailyQuest.limit ?? 1);
+    dailyCheckinHtml = `
+      <div class="parchment-card" style="margin-bottom: var(--spacing-sm); padding: 12px 16px; background: linear-gradient(135deg, rgba(255, 235, 180, 0.25) 0%, rgba(255, 255, 255, 0.7) 100%); border: 1.5px solid var(--gold-border);">
+        <div class="flex justify-between items-center">
+          <div class="flex items-center gap-sm">
+            <span style="font-size: 26px;">⚡</span>
+            <div>
+              <div class="flex items-center gap-xs">
+                <span style="font-weight: 800; font-size: 14px; color: var(--text-parchment);">${dailyQuest.title}</span>
+                <span class="badge-tag" style="background: rgba(0, 210, 255, 0.15); color: #007799; border: 1px solid rgba(0, 210, 255, 0.4); font-size: 10px; padding: 1px 6px;">ЩОДЕННИЙ ЧЕКІН</span>
+              </div>
+              <div style="font-size: 11px; color: var(--text-parchment-muted); margin-top: 1px;">${dailyQuest.desc}</div>
+            </div>
+          </div>
+          <div>
+            ${dailyDone ? `
+              <span class="badge-tag" style="background: rgba(62, 207, 146, 0.15); color: var(--ok); border: 1px solid var(--ok); font-weight: 800; font-size: 12px; padding: 4px 10px;">
+                ✓ Виконано
+              </span>
+            ` : `
+              <span class="badge-gold" style="font-size: 13px; font-weight: 800; padding: 3px 9px; border-radius: 12px;">
+                +${dailyQuest.reward} ✦
+              </span>
+            `}
+          </div>
+        </div>
+      </div>
+    `;
+  }
+
+  const displayQuests = getDisplayQuests(quests, p).filter(q => q.id !== dailyQuest?.id);
 
   root.innerHTML = `
     <div class="container">
@@ -36,33 +90,65 @@ export function renderQuests(root, state) {
       
       <!-- Загальний лічильник зароблених зірок за квести -->
       <div class="parchment-card" style="margin-bottom: var(--spacing-md); padding: 14px 16px;">
-        <div class="flex justify-between items-center" style="margin-bottom: 8px;">
+        <div class="flex justify-between items-center">
           <div class="flex items-center gap-xs">
             <span style="display:inline-flex; align-items:center;">
               ${iconPrimogem(20)}
             </span>
-            <span style="font-weight: 700; font-size: 14px; color: var(--text-parchment);">Зароблено за квести у цьому місяці:</span>
+            <span style="font-weight: 700; font-size: 14px; color: var(--text-parchment);">Зароблено бонусних зірок у цьому місяці:</span>
           </div>
           <span style="font-weight: 800; font-size: 16px; font-family: var(--font-fantasy); color: var(--gold-deep);">
-            ${monthStars} / ${monthlyCap} ✦
+            +${monthStars} ✦
           </span>
-        </div>
-        <div class="genshin-progress-track">
-          <div class="${monthStars >= monthlyCap ? 'genshin-progress-fill-cyan' : 'genshin-progress-fill-gold'}" style="width: ${capPercent}%;"></div>
         </div>
       </div>
 
+      <!-- Щоденний чекін -->
+      ${dailyCheckinHtml}
+
       <!-- Список завдань у стилі Книги Шукача Пригод -->
       <div class="flex flex-col gap-sm">
-        ${quests.map(quest => {
+        ${displayQuests.map(quest => {
+          // Якщо це пробуджений секретний квест
+          if (quest.secret) {
+            const secState = getQuestSecretState(p, quest, quests, { nowMs, month, week });
+            if (secState.isLocked) return '';
+            const val = secState.val || validateQuest(p, quest, { nowMs, month, week });
+            return `
+              <div class="solo-system-card" style="margin-bottom: 12px;">
+                <div class="flex justify-between items-center" style="margin-bottom: 8px;">
+                  <span class="system-badge">
+                    <span style="font-size: 12px;">⚡</span> [СИСТЕМНЕ СПОВІЩЕННЯ]
+                  </span>
+                  <span class="system-overdrive-badge">
+                    ОВЕРДРАЙВ +${quest.reward} ✦
+                  </span>
+                </div>
+                <div style="font-weight: 800; font-size: 16px; color: #fff; margin-bottom: 3px; font-family: var(--font-fantasy);">
+                  ${quest.title}
+                </div>
+                <div style="font-size: 12px; color: #94a3b8; line-height: 1.35; margin-bottom: 10px;">
+                  ${quest.desc}
+                </div>
+                <div class="flex justify-between" style="font-size: 11px; color: var(--system-blue);">
+                  <span>Прогрес доручення:</span>
+                  <span style="font-weight: 800;">${val.progress} / ${val.target} (${val.percent}%)</span>
+                </div>
+                <div class="system-progress-track">
+                  <div class="system-progress-fill" style="width: ${val.percent}%;"></div>
+                </div>
+              </div>
+            `;
+          }
+
+          const secretState = getQuestSecretState(p, quest, quests, { nowMs, month, week });
+
           const isLifetime = quest.type === 'lifetime_milestone' || quest.period === 'lifetime';
           const isWeekly = !isLifetime && (quest.period === 'week' || quest.period === 'weekly' || quest.perWeek != null);
           const counters = isLifetime ? (p.counters?.lifetime || {}) : (isWeekly ? weekCounters : monthCounters);
-          const currentStars = isLifetime ? 0 : (isWeekly ? weekStars : monthStars);
-          const currentCap = isLifetime ? Infinity : (isWeekly ? weeklyCap : monthlyCap);
           const limit = isLifetime ? 1 : (isWeekly ? (quest.perWeek ?? quest.limit ?? quest.perMonth ?? 1) : (quest.perMonth ?? quest.limit ?? 1));
-          const count = Math.max(counters[quest.id] || 0, p.stats?.quests?.[quest.id] || 0);
-          const isDone = count >= limit || currentStars >= currentCap;
+          const count = isLifetime ? Math.max(counters[quest.id] || 0, p.stats?.quests?.[quest.id] || 0) : (counters[quest.id] || 0);
+          const isDone = count >= limit;
 
           let progress = 0; let target = limit; let percent = 0;
           if (isDone) {
@@ -105,7 +191,7 @@ export function renderQuests(root, state) {
 
           const periodText = isLifetime ? 'за весь час' : (isWeekly ? 'цього тижня' : 'цього місяця');
 
-          return `
+          const baseCardContent = `
             <div class="parchment-card" style="padding: 14px 16px;">
               <div class="flex justify-between items-start" style="gap: 8px;">
                 <div class="flex items-start gap-sm">
@@ -132,7 +218,7 @@ export function renderQuests(root, state) {
               <!-- Прогрес виконання -->
               <div style="margin-top: 10px;">
                 <div class="flex justify-between" style="font-size: 11px; margin-bottom: 4px; color: var(--text-parchment-subtle);">
-                  <span>${isDone ? (count >= limit ? 'Виконано ✓' : 'Ліміт зірок вичерпано') : `Прогрес ${periodText}:`}</span>
+                  <span>${isDone ? 'Виконано ✓' : `Прогрес ${periodText}:`}</span>
                   <span style="font-weight: 700; color: var(--text-parchment);">${isDone ? "Виконано" : (fmtProg + " / " + fmtTar)}</span>
                 </div>
                 <div class="genshin-progress-track">
@@ -141,8 +227,29 @@ export function renderQuests(root, state) {
               </div>
             </div>
           `;
+
+          // Якщо на квесті лежить динамічний туман (fog)
+          if (secretState.state === 'fog') {
+            return `
+              <div class="quest-fog-container">
+                <div class="quest-fog-overlay fog-${secretState.stage}">
+                  <div style="font-size: 20px; margin-bottom: 2px;">🔮</div>
+                  <div style="font-weight: 800; font-size: 13px; text-transform: uppercase; letter-spacing: 0.5px;">
+                    ${secretState.stage === 'white' ? 'Простір вібрує...' : (secretState.stage === 'twilight' ? 'Астральний туман згущується...' : 'Майже розвіяно!')}
+                  </div>
+                  <div style="font-size: 11px; margin-top: 3px; opacity: 0.9;">
+                    Розвіювання туману: <b>${secretState.current} / ${secretState.target}</b>
+                  </div>
+                </div>
+                ${baseCardContent}
+              </div>
+            `;
+          }
+
+          return baseCardContent;
         }).join('')}
       </div>
     </div>
   `;
 }
+

@@ -8,7 +8,6 @@ export function snapshot(p) {
     lastOp: p.lastOp ?? null, lastAt: { ...p.lastAt }, stats: structuredClone(p.stats),
     counters: structuredClone(p.counters), achievements: [...p.achievements]
   };
-  if (p.grades) s.grades = structuredClone(p.grades);
   return s;
 }
 

@@ -1,4 +1,4 @@
-const CACHE_NAME = 'zoryanyi-klas-v7';
+const CACHE_NAME = 'zoryanyi-klas-v8';
 const ASSETS = [
   './',
   './index.html',
@@ -79,9 +79,12 @@ self.addEventListener('activate', (event) => {
 
 self.addEventListener('fetch', (event) => {
   if (event.request.method !== 'GET') return;
+  if (!event.request.url.startsWith('http://') && !event.request.url.startsWith('https://')) return;
+
   // Never intercept Firestore API calls & Google Auth
   if (event.request.url.includes('firestore.googleapis.com') || 
       event.request.url.includes('identitytoolkit.googleapis.com') ||
+      event.request.url.includes('googleapis.com') ||
       event.request.url.includes('gstatic.com')) {
     return;
   }
@@ -93,8 +96,8 @@ self.addEventListener('fetch', (event) => {
         if (networkResponse && networkResponse.status === 200 && networkResponse.type === 'basic') {
           const responseToCache = networkResponse.clone();
           caches.open(CACHE_NAME).then((cache) => {
-            cache.put(event.request, responseToCache);
-          });
+            cache.put(event.request, responseToCache).catch(() => {});
+          }).catch(() => {});
         }
         return networkResponse;
       })
@@ -104,7 +107,7 @@ self.addEventListener('fetch', (event) => {
           if (event.request.mode === 'navigate') {
             return caches.match('./index.html');
           }
-        });
+        }).catch(() => {});
       })
   );
 });

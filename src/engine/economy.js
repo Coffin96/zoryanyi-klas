@@ -14,17 +14,24 @@ import { runQuests } from './quests.js';
  * @returns {{profile:ProfileState, entries:{g:number,v:number}[], events:object[], delta:number, prev:object}}
  */
 export function creditGrades(p, grades, cfg, nowMs) {
-  const { month, day, week } = kyivParts(nowMs);
+  const { month, day, week, ymd } = kyivParts(nowMs);
   const next = structuredClone(p);
   const events = [];
   const entries = [];
   const prev = snapshot(p);
   let delta = 0;
+
+  if (!next.counters) next.counters = {};
+  const weekCounters = (next.counters[week] ??= {});
+  const monthCounters = (next.counters[month] ??= {});
+  const dayCounters = (next.counters[ymd] ??= {});
+
   next.grades = Array.isArray(p.grades)
     ? [...p.grades]
     : (Array.isArray(p.ledger)
       ? [...p.ledger]
       : (Array.isArray(p.history) ? [...p.history] : []));
+
   for (const g of grades) {
     if (!(String(g) in cfg.grades)) throw new Error(`grade-not-allowed:${g}`);
     const v = cfg.grades[g];
@@ -32,9 +39,17 @@ export function creditGrades(p, grades, cfg, nowMs) {
     bump(next.stats.gradeCount, g);
     entries.push({ g, v });
     next.grades.push({ grade: g, ts: nowMs });
+
+    weekCounters.gradeCount = (weekCounters.gradeCount || 0) + 1;
+    monthCounters.gradeCount = (monthCounters.gradeCount || 0) + 1;
+    monthCounters.gradeSum = (monthCounters.gradeSum || 0) + g;
+    dayCounters.gradeCount = (dayCounters.gradeCount || 0) + 1;
+    next.recent = [...(next.recent || []), g].slice(-10);
+
     delta += runQuests(next, g, cfg, month, day, events, week, nowMs);
   }
   next.last = { t: nowMs, gs: [...grades] };
+  delete next.grades;
   return { profile: next, entries, events, delta, prev };
 }
 

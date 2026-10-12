@@ -75,9 +75,10 @@ export function validateQuest(p, q, contextOrMs = {}) {
   const g = context.g ?? null;
 
   const isLifetime = q.type === 'lifetime_milestone' || q.period === 'lifetime';
-  const isWeekly = !isLifetime && (q.period === 'weekly' || q.period === 'week' || q.perWeek != null);
-  const periodKey = isLifetime ? 'lifetime' : (isWeekly ? targetWeek : targetMonth);
-  const limit = isLifetime ? 1 : (isWeekly ? (q.perWeek ?? q.limit ?? 1) : (q.perMonth ?? q.limit ?? 1));
+  const isDaily = q.period === 'daily';
+  const isWeekly = !isLifetime && !isDaily && (q.period === 'weekly' || q.period === 'week' || q.perWeek != null);
+  const periodKey = isLifetime ? 'lifetime' : (isDaily ? parts.ymd : (isWeekly ? targetWeek : targetMonth));
+  const limit = isLifetime ? 1 : (isDaily ? (q.limit ?? 1) : (isWeekly ? (q.perWeek ?? q.limit ?? 1) : (q.perMonth ?? q.limit ?? 1)));
   const counters = (p.counters && p.counters[periodKey]) || {};
   const timesAwarded = isLifetime ? Math.max(counters[q.id] || 0, p.stats?.quests?.[q.id] || 0) : (counters[q.id] || 0);
   const isLimitReached = timesAwarded >= limit;
@@ -91,11 +92,21 @@ export function validateQuest(p, q, contextOrMs = {}) {
   let target = 1;
 
   switch (q.type) {
+    case 'daily_hot': {
+      const todayYmd = parts.ymd;
+      const dayCounters = p.counters?.[todayYmd] || {};
+      progress = dayCounters.gradeCount ? 1 : (g != null ? 1 : 0);
+      target = 1;
+      eligible = progress >= target;
+      break;
+    }
+
     case 'weekly_count':
     case 'grade_count': {
       target = q.params?.count ?? q.params?.targetCount ?? 4;
+      const counterCount = p.counters?.[targetWeek]?.gradeCount ?? 0;
       const weeklyCount = countWeeklyGrades(items, targetWeek);
-      const effectiveCount = weeklyCount > 0 ? weeklyCount : (items.length > 0 && items.every(i => i.ts == null) ? items.length : 0);
+      const effectiveCount = Math.max(counterCount, weeklyCount > 0 ? weeklyCount : (items.length > 0 && items.every(i => i.ts == null) ? items.length : 0));
       progress = effectiveCount;
       eligible = effectiveCount >= target;
       break;
@@ -104,7 +115,8 @@ export function validateQuest(p, q, contextOrMs = {}) {
     case 'consecutive': {
       const minGrade = q.params?.minGrade ?? 7;
       target = q.params?.length ?? q.params?.targetLength ?? 3;
-      const streak = calculateStreak(items, minGrade, target);
+      const streakItems = (Array.isArray(p.recent) && p.recent.length > 0) ? p.recent : items;
+      const streak = calculateStreak(streakItems, minGrade, target);
       progress = streak.current;
       eligible = streak.current >= target || streak.qualifies;
       break;
@@ -130,39 +142,60 @@ export function validateQuest(p, q, contextOrMs = {}) {
     case 'target_grade':
     case 'grade':
     case 'score': {
-      target = q.params?.grade ?? q.params?.exactGrade ?? q.params?.minGrade ?? 12;
-      progress = g != null ? g : 0;
-      eligible = g != null && g === target;
+      const reqGrade = q.params?.grade ?? q.params?.exactGrade ?? q.params?.minGrade ?? 12;
+      if (q.params?.targetCount != null) {
+        target = q.params.targetCount;
+        let count12 = 0;
+        for (const item of items) {
+          if (item.grade === reqGrade) {
+            if (item.ts != null) {
+              if (kyivParts(item.ts).week === targetWeek) count12++;
+            } else {
+              count12++;
+            }
+          }
+        }
+        progress = count12;
+        eligible = progress >= target;
+      } else {
+        target = reqGrade;
+        progress = g != null ? g : 0;
+        eligible = g != null && g === target;
+      }
       break;
     }
 
     case 'monthly_growth':
     case 'period_growth': {
       const minTotal = q.params?.minTotalGrades ?? 10;
-      const totalGrades = items.length || Object.values(p.stats?.gradeCount || {}).reduce((a, b) => a + b, 0);
+      const mCurr = p.counters?.[targetMonth];
+      const prevMonth = getPreviousMonthKey(targetMonth);
+      const mPrev = prevMonth ? p.counters?.[prevMonth] : null;
+      let currStats, prevStats, totalGrades;
+
+      const statsTotal = Object.values(p.stats?.gradeCount || {}).reduce((a, b) => a + b, 0);
+      totalGrades = Math.max(items.length, statsTotal, (mCurr?.gradeCount || 0) + (mPrev?.gradeCount || 0));
+
+      if (mCurr && typeof mCurr.gradeCount === 'number' && mPrev && typeof mPrev.gradeCount === 'number' && mPrev.gradeCount > 0) {
+        currStats = { average: Math.round((mCurr.gradeSum / mCurr.gradeCount) * 10) / 10, count: mCurr.gradeCount, hasData: true };
+        prevStats = { average: Math.round((mPrev.gradeSum / mPrev.gradeCount) * 10) / 10, count: mPrev.gradeCount, hasData: true };
+      } else {
+        currStats = calculatePeriodAverage(items, { targetMonth: targetMonth });
+        if (!currStats.hasData && mCurr && typeof mCurr.gradeCount === 'number' && mCurr.gradeCount > 0) {
+          currStats = { average: Math.round((mCurr.gradeSum / mCurr.gradeCount) * 10) / 10, count: mCurr.gradeCount, hasData: true };
+        }
+        prevStats = calculatePeriodAverage(items, { targetMonth: prevMonth });
+        if (!prevStats.hasData && mPrev && typeof mPrev.gradeCount === 'number' && mPrev.gradeCount > 0) {
+          prevStats = { average: Math.round((mPrev.gradeSum / mPrev.gradeCount) * 10) / 10, count: mPrev.gradeCount, hasData: true };
+        }
+      }
+
       progress = totalGrades;
       target = minTotal;
-
-      if (totalGrades >= minTotal) {
-        const currStats = calculatePeriodAverage(items, { targetMonth: targetMonth });
-        if (currStats.hasData && currStats.count > 0) {
-          const prevMonth = getPreviousMonthKey(targetMonth);
-          const prevStats = calculatePeriodAverage(items, { targetMonth: prevMonth });
-
-          if (prevStats.hasData && prevStats.count > 0) {
-            eligible = currStats.average > prevStats.average;
-            progress = currStats.average;
-            target = prevStats.average;
-          } else {
-            const priorItems = items.filter(x => x.ts != null && kyivParts(x.ts).month !== targetMonth && kyivParts(x.ts).month < targetMonth);
-            const priorStats = calculatePeriodAverage(priorItems);
-            if (priorStats.hasData && priorStats.count > 0) {
-              eligible = currStats.average > priorStats.average;
-              progress = currStats.average;
-              target = priorStats.average;
-            }
-          }
-        }
+      if (totalGrades >= minTotal && currStats.hasData && prevStats.hasData && prevStats.count > 0) {
+        eligible = currStats.average > prevStats.average;
+        progress = currStats.average;
+        target = prevStats.average;
       }
       break;
     }
@@ -171,7 +204,14 @@ export function validateQuest(p, q, contextOrMs = {}) {
     case 'period_average': {
       const minAvg = q.params?.minAverage ?? 10;
       target = minAvg;
-      const currStats = calculatePeriodAverage(items, { targetMonth: targetMonth });
+      const mCounter = p.counters?.[targetMonth];
+      let currStats;
+      if (mCounter && typeof mCounter.gradeCount === 'number' && mCounter.gradeCount > 0) {
+        const avg = Math.round((mCounter.gradeSum / mCounter.gradeCount) * 10) / 10;
+        currStats = { average: avg, count: mCounter.gradeCount, hasData: true };
+      } else {
+        currStats = calculatePeriodAverage(items, { targetMonth: targetMonth });
+      }
       progress = currStats.average;
       eligible = currStats.hasData && currStats.count >= (q.params?.minMonthlyGrades ?? 1) && currStats.average > minAvg;
       break;
@@ -179,10 +219,13 @@ export function validateQuest(p, q, contextOrMs = {}) {
 
     case 'growth': {
       const { window = 10, minHistory = 5, delta = 2, minGrade = 7 } = q.params || {};
-      const base = avg((p.recent || []).slice(-window));
-      progress = p.recent ? p.recent.length : 0;
+      const prevRecent = (p.recent && p.recent.length > 0 && p.recent[p.recent.length - 1] === g)
+        ? p.recent.slice(0, -1)
+        : (p.recent || []);
+      const base = avg(prevRecent.slice(-window));
+      progress = prevRecent.length;
       target = minHistory;
-      eligible = (p.recent || []).length >= minHistory && g != null && g >= minGrade && g >= base + delta;
+      eligible = prevRecent.length >= minHistory && g != null && g >= minGrade && g >= base + delta;
       break;
     }
 
@@ -211,6 +254,7 @@ export function validateQuest(p, q, contextOrMs = {}) {
     limitReached: isLimitReached,
     isWeekly,
     isLifetime,
+    isDaily,
     periodKey,
     percent
   };
@@ -224,13 +268,27 @@ export function runQuests(p, g, cfg, month, day, events, week, nowMs) {
   for (const q of quests) {
     if (q.type === 'manual') continue;
 
+    // Якщо це секретний квест, перевіряємо чи він розблокований
+    if (q.secret) {
+      const secState = getQuestSecretState(p, q, quests, {
+        g,
+        nowMs: currentMs,
+        month,
+        day,
+        week
+      });
+      if (secState.isLocked) {
+        continue;
+      }
+    }
+
     // Сумісність: старий streak з p.hot
     if (q.type === 'streak' && q.params?.windowDays != null) {
       if (g >= q.params.minGrade) {
         p.hot = [...(p.hot || []).filter(d => day - d < q.params.windowDays), day];
         if (p.hot.length >= q.params.length) {
           p.hot = [];
-          bonus += award(p, q, cfg, month, events, week);
+          bonus += award(p, q, cfg, month, events, week, currentMs);
         }
       }
       continue;
@@ -239,9 +297,12 @@ export function runQuests(p, g, cfg, month, day, events, week, nowMs) {
     // Сумісність: старий growth з p.recent (базовий бал розраховується до додавання g)
     if (q.type === 'growth') {
       const { window = 10, minHistory = 5, delta = 2, minGrade = 7 } = q.params || {};
-      const base = avg((p.recent || []).slice(-window));
-      if ((p.recent || []).length >= minHistory && g >= minGrade && g >= base + delta) {
-        bonus += award(p, q, cfg, month, events, week);
+      const prevRecent = (p.recent && p.recent.length > 0 && p.recent[p.recent.length - 1] === g)
+        ? p.recent.slice(0, -1)
+        : (p.recent || []);
+      const base = avg(prevRecent.slice(-window));
+      if (prevRecent.length >= minHistory && g >= minGrade && g >= base + delta) {
+        bonus += award(p, q, cfg, month, events, week, currentMs);
       }
       continue;
     }
@@ -256,34 +317,44 @@ export function runQuests(p, g, cfg, month, day, events, week, nowMs) {
     });
 
     if (validation.eligible) {
-      bonus += award(p, q, cfg, month, events, week);
+      bonus += award(p, q, cfg, month, events, week, currentMs);
     }
   }
 
-  // Оновлення p.recent для сумісності з growth
+  // Оновлення p.recent для сумісності з growth (якщо не було додано в creditGrades)
   const growthQuests = quests.filter(q => q.type === 'growth');
   const maxWindow = growthQuests.length > 0 ? Math.max(...growthQuests.map(q => q.params.window || 10)) : 10;
-  p.recent = [...(p.recent || []), g].slice(-Math.max(maxWindow, 10));
+  if (!p.recent || p.recent[p.recent.length - 1] !== g) {
+    p.recent = [...(p.recent || []), g].slice(-Math.max(maxWindow, 10));
+  }
 
   return bonus;
 }
 
 /** Нарахування квесту з урахуванням лімітів; повертає нараховану кількість ✦. Використовується і для manual-квестів. */
-export function award(p, q, cfg, month, events, week) {
+export function award(p, q, cfg, month, events, week, nowMs) {
   const isLifetime = q.type === 'lifetime_milestone' || q.period === 'lifetime';
-  const isWeekly = !isLifetime && (q.period === 'week' || q.period === 'weekly' || q.perWeek != null);
-  const periodKey = isLifetime ? 'lifetime' : (isWeekly ? (week || month) : month);
-  const limit = isLifetime ? 1 : (isWeekly ? (q.perWeek ?? q.limit ?? 1) : (q.perMonth ?? q.limit ?? 1));
-  const cap = isLifetime ? Infinity : (isWeekly ? (cfg.questWeeklyCap ?? 15) : (cfg.questMonthlyCap ?? 30));
+  const isDaily = q.period === 'daily';
+  const isWeekly = !isLifetime && !isDaily && (q.period === 'week' || q.period === 'weekly' || q.perWeek != null);
+
+  const currentKyiv = kyivParts(nowMs ?? Date.now());
+  let periodKey = month;
+  if (isLifetime) periodKey = 'lifetime';
+  else if (isDaily) periodKey = currentKyiv.ymd;
+  else if (isWeekly) periodKey = week || currentKyiv.week;
+
+  const limit = isLifetime ? 1 : (isDaily ? (q.limit ?? 1) : (isWeekly ? (q.perWeek ?? q.limit ?? 1) : (q.perMonth ?? q.limit ?? 1)));
+
+  const cap = isLifetime || isDaily ? Infinity : (isWeekly ? (cfg.questWeeklyCap ?? Infinity) : (cfg.questMonthlyCap ?? Infinity));
 
   if (!p.counters) p.counters = {};
   const c = (p.counters[periodKey] ??= {});
   const timesAwarded = isLifetime ? Math.max(c[q.id] ?? 0, p.stats?.quests?.[q.id] ?? 0) : (c[q.id] ?? 0);
   if (timesAwarded >= limit) return 0;
-  const give = isLifetime ? q.reward : Math.min(q.reward, Math.max(cap - (c.questStars ?? 0), 0));
+  const give = isFinite(cap) ? Math.min(q.reward, Math.max(cap - (c.questStars ?? 0), 0)) : q.reward;
   if (give <= 0) return 0;
   c[q.id] = (c[q.id] ?? 0) + 1;
-  if (!isLifetime) {
+  if (!isLifetime && !isDaily) {
     c.questStars = (c.questStars ?? 0) + give;
   }
   p.balance += give; p.earned += give;
@@ -302,10 +373,171 @@ export function awardManual(p, questId, cfg, nowMs) {
   const prev = snapshot(p);
   const events = [];
 
-  const give = award(next, q, cfg, month, events, week);
+  const give = award(next, q, cfg, month, events, week, nowMs);
   if (give === 0) return { ok: false, reason: 'limit' };
 
   return { ok: true, profile: next, delta: give, prev, events };
+}
+
+/**
+ * Розраховує прогрес розкриття для пари батьківський квест -> секретний квест.
+ */
+function getRevealProgress(p, parentQuest, secretQuest, ctx, items, targetWeek, targetMonth) {
+  let revealCurrent = 0;
+  let baseTarget = 1;
+
+  if (parentQuest.type === 'weekly_count' || parentQuest.type === 'grade_count') {
+    baseTarget = parentQuest.params?.count ?? parentQuest.params?.targetCount ?? 4;
+    const counterCount = p.counters?.[targetWeek]?.gradeCount ?? 0;
+    const weeklyCount = countWeeklyGrades(items, targetWeek);
+    revealCurrent = Math.max(counterCount, weeklyCount > 0 ? weeklyCount : (items.length > 0 && items.every(i => i.ts == null) ? items.length : 0));
+  } else if (parentQuest.type === 'consecutive') {
+    const minGrade = parentQuest.params?.minGrade ?? 7;
+    baseTarget = parentQuest.params?.length ?? parentQuest.params?.targetLength ?? 3;
+    const streakItems = (Array.isArray(p.recent) && p.recent.length > 0) ? p.recent : items;
+    const streak = calculateStreak(streakItems, minGrade, baseTarget);
+    revealCurrent = streak.current;
+  } else if (parentQuest.type === 'target_grade' || parentQuest.type === 'grade') {
+    const targetGrade = parentQuest.params?.grade ?? 12;
+    baseTarget = parentQuest.perWeek ?? parentQuest.limit ?? 2;
+    let countGrade = 0;
+    for (const item of items) {
+      if (item.grade === targetGrade) {
+        if (item.ts != null) {
+          if (kyivParts(item.ts).week === targetWeek) countGrade++;
+        } else {
+          countGrade++;
+        }
+      }
+    }
+    const awarded = p.counters?.[targetWeek]?.[parentQuest.id] ?? 0;
+    revealCurrent = Math.max(countGrade, awarded);
+  } else if (parentQuest.type === 'monthly_average' || parentQuest.type === 'period_average') {
+    baseTarget = parentQuest.params?.minAverage ?? 10;
+    const mCounter = p.counters?.[targetMonth];
+    let avgVal = 0;
+    if (mCounter && typeof mCounter.gradeCount === 'number' && mCounter.gradeCount > 0) {
+      avgVal = Math.round((mCounter.gradeSum / mCounter.gradeCount) * 10) / 10;
+    } else {
+      const stats = calculatePeriodAverage(items, { targetMonth });
+      avgVal = stats.hasData ? stats.average : 0;
+    }
+    revealCurrent = avgVal;
+  } else {
+    const val = validateQuest(p, parentQuest, ctx);
+    baseTarget = val.target;
+    revealCurrent = val.progress;
+  }
+
+  return { revealCurrent, baseTarget };
+}
+
+/**
+ * Визначає стан секретності та туману для квесту.
+ * @param {object} p Профіль учня
+ * @param {object} quest Цільовий квест
+ * @param {Array} allQuests Масив усіх квестів конфігурації
+ * @param {object|number} [context] Контекст (nowMs, week, month тощо)
+ * @returns {object} Стан квесту
+ */
+export function getQuestSecretState(p, quest, allQuests = [], context = {}) {
+  const ctx = typeof context === 'number' ? { nowMs: context } : (context || {});
+  const nowMs = ctx.nowMs ?? Date.now();
+  const parts = kyivParts(nowMs);
+  const targetMonth = ctx.month ?? parts.month;
+  const targetWeek = ctx.week ?? parts.week;
+
+  const rawItems = ctx.items || getProfileGradeItems(p, ctx.g ?? null, nowMs);
+  const items = normalizeGrades(rawItems);
+
+  // 1. Якщо це секретний квест (q.secret або має parentQuestId)
+  if (quest.secret || quest.parentQuestId) {
+    const parent = allQuests.find(q => q.id === quest.parentQuestId);
+    const unlockAt = quest.unlockAt ?? 0;
+    let revealCurrent = 0;
+
+    if (parent) {
+      const prog = getRevealProgress(p, parent, quest, ctx, items, targetWeek, targetMonth);
+      revealCurrent = prog.revealCurrent;
+    } else {
+      const val = validateQuest(p, quest, ctx);
+      revealCurrent = val.progress;
+    }
+
+    if (revealCurrent < unlockAt) {
+      return {
+        isLocked: true,
+        isRevealed: false,
+        current: revealCurrent,
+        target: unlockAt
+      };
+    }
+
+    return {
+      isLocked: false,
+      isRevealed: true,
+      current: revealCurrent,
+      target: unlockAt,
+      val: validateQuest(p, quest, ctx)
+    };
+  }
+
+  // 2. Якщо це звичайний квест з секретним супутником sq
+  const sq = allQuests.find(q => q.parentQuestId === quest.id);
+  if (sq) {
+    const { revealCurrent, baseTarget } = getRevealProgress(p, quest, sq, ctx, items, targetWeek, targetMonth);
+    const revealTarget = sq.unlockAt;
+    const baseVal = validateQuest(p, quest, ctx);
+    const isDone = baseVal.completed || baseVal.limitReached || (baseVal.timesAwarded >= baseVal.limit) || (revealCurrent >= baseTarget);
+
+    if (revealCurrent >= revealTarget) {
+      return {
+        state: 'awakened',
+        current: revealCurrent,
+        target: revealTarget,
+        secretQuest: sq
+      };
+    }
+
+    if (isDone && revealCurrent < revealTarget) {
+      let stage = 'white';
+      if (Number.isInteger(baseTarget)) {
+        if (revealCurrent <= baseTarget) {
+          stage = 'white';
+        } else if (revealCurrent === baseTarget + 1) {
+          stage = 'twilight';
+        } else {
+          stage = 'abyss';
+        }
+      } else {
+        const delta = (revealTarget - baseTarget) / 3;
+        if (revealCurrent <= baseTarget + delta) {
+          stage = 'white';
+        } else if (revealCurrent <= baseTarget + delta * 2) {
+          stage = 'twilight';
+        } else {
+          stage = 'abyss';
+        }
+      }
+
+      return {
+        state: 'fog',
+        stage,
+        current: revealCurrent,
+        target: revealTarget,
+        secretQuest: sq
+      };
+    }
+
+    return {
+      state: 'normal',
+      current: revealCurrent,
+      target: revealTarget,
+      secretQuest: sq
+    };
+  }
+
+  return { state: 'none' };
 }
 
 /**
@@ -324,24 +556,25 @@ export function findNearestQuest(p, cfg, nowMs = Date.now()) {
   const monthCounters = (p?.counters && p.counters[month]) || {};
   const lifetimeCounters = (p?.counters && p.counters['lifetime']) || {};
 
-  const weekStars = weekCounters.questStars || 0;
-  const weeklyCap = cfg?.questWeeklyCap ?? 6;
-  const monthStars = monthCounters.questStars || 0;
-  const monthlyCap = cfg?.questMonthlyCap ?? 8;
-
   const candidates = [];
 
   for (const q of quests) {
+    if (q.secret) {
+      const secState = getQuestSecretState(p, q, quests, { nowMs, month, week });
+      if (secState.isLocked) {
+        continue;
+      }
+    }
+
     const isLifetime = q.type === 'lifetime_milestone' || q.period === 'lifetime';
-    const isWeekly = !isLifetime && (q.period === 'week' || q.period === 'weekly' || q.perWeek != null);
-    const counters = isLifetime ? lifetimeCounters : (isWeekly ? weekCounters : monthCounters);
-    const currentStars = isLifetime ? 0 : (isWeekly ? weekStars : monthStars);
-    const currentCap = isLifetime ? Infinity : (isWeekly ? weeklyCap : monthlyCap);
-    const limit = isLifetime ? 1 : (isWeekly ? (q.perWeek ?? q.limit ?? q.perMonth ?? 1) : (q.perMonth ?? q.limit ?? 1));
+    const isDaily = q.period === 'daily';
+    const isWeekly = !isLifetime && !isDaily && (q.period === 'week' || q.period === 'weekly' || q.perWeek != null);
+    const counters = isLifetime ? lifetimeCounters : (isWeekly ? weekCounters : (isDaily ? (p?.counters?.[kyivParts(nowMs).ymd] || {}) : monthCounters));
+    const limit = isLifetime ? 1 : (isDaily ? (q.limit ?? 1) : (isWeekly ? (q.perWeek ?? q.limit ?? q.perMonth ?? 1) : (q.perMonth ?? q.limit ?? 1)));
     const timesAwarded = isLifetime ? Math.max(counters[q.id] || 0, p?.stats?.quests?.[q.id] || 0) : (counters[q.id] || 0);
 
-    // Якщо ліміт квесту або загальний ліміт зірок вичерпано — квест закритий
-    if (timesAwarded >= limit || currentStars >= currentCap) {
+    // Якщо ліміт квесту вичерпано — квест закритий
+    if (timesAwarded >= limit) {
       continue;
     }
 
@@ -363,7 +596,7 @@ export function findNearestQuest(p, cfg, nowMs = Date.now()) {
     if (percent >= 100) continue;
 
     const isPassive = q.type === 'monthly_average' || q.type === 'period_average' || q.type === 'growth' || q.type === 'monthly_growth' || q.type === 'lifetime_milestone';
-    const priority = isPassive ? 0 : 1;
+    const priority = q.secret ? 2 : (isPassive ? 0 : 1);
 
     let desc = q.desc || q.description;
     if (!desc) {
@@ -375,6 +608,7 @@ export function findNearestQuest(p, cfg, nowMs = Date.now()) {
       else if (q.type === 'growth') desc = 'Отримай оцінку, вищу за середній бал твоїх робіт';
       else if (q.type === 'streak') desc = '3 оцінки від 8 балів протягом 7 днів';
       else if (q.type === 'lifetime_milestone') desc = `Назбирай ${q.target ?? 100} зірочок за весь час`;
+      else if (q.type === 'daily_hot') desc = 'Зарахуй оцінку в той самий день, коли її отримано';
       else if (q.type === 'manual') desc = 'Корисна допомога класу або спільній справі';
       else desc = 'Спеціальне завдання';
     }
@@ -388,7 +622,10 @@ export function findNearestQuest(p, cfg, nowMs = Date.now()) {
       desc,
       reward: q.reward || 0,
       isWeekly,
-      isLifetime
+      isLifetime,
+      isDaily,
+      isSecret: !!q.secret,
+      overdrive: !!q.overdrive
     });
   }
 

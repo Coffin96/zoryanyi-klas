@@ -6,7 +6,6 @@ import { generateQRUrl } from '../engine/qr-protocol.js';
 import { renderBudgetSection } from './budget.js';
 import { renderOpsSection } from './ops.js';
 import { iconPrimogem, iconFiligreeDivider } from '../components/genshin-icons.js';
-import { defaultConfig } from '../data/default-config.js';
 
 export async function renderAdmin(root) {
   let profiles = [];
@@ -123,17 +122,6 @@ export async function renderAdmin(root) {
 
       <!-- 5. Експлуатація та резервні копії (M8) -->
       <div id="ops-container"></div>
-
-      <!-- 6. Системні налаштування -->
-      <div class="surface-card flex flex-col gap-md" style="margin-bottom: var(--spacing-md); border: 1.5px solid var(--gold-border);">
-        <h3 class="fantasy-title" style="margin:0; font-size: 17px; color: var(--gold-light);">🔧 Системні налаштування</h3>
-        <p class="text-muted" style="margin:0; font-size: 13px;">
-          Оновлення системних квестів, лімітів та титулів до актуальної версії конфігурації (v2.0) у базі Firebase без зміни цін у магазині чи активних подій.
-        </p>
-        <button id="btn-migrate-v2" class="btn-genshin-gold" style="padding: 12px; border-radius: 12px; font-weight: bold; background: linear-gradient(135deg, #a83232 0%, #d4af37 100%); color: #fff; border: 1.5px solid var(--gold-border); cursor: pointer;">
-          ⚠️ Оновити базу квестів та титулів (v2.0)
-        </button>
-      </div>
     </div>
   `;
 
@@ -502,42 +490,5 @@ export async function renderAdmin(root) {
   const opsContainer = document.getElementById('ops-container');
   if (opsContainer) {
     renderOpsSection(opsContainer, profiles, () => renderAdmin(root));
-  }
-
-  // 6. Оновлення бази квестів та титулів (v2.0)
-  const btnMigrateV2 = document.getElementById('btn-migrate-v2');
-  if (btnMigrateV2) {
-    btnMigrateV2.addEventListener('click', async () => {
-      const confirmed = confirm('Увага! Це безпечно оновить квести, ліміти та титули в базі Firebase на основі нових файлів проекту. Ваші ціни в магазині та Спеціальні події залишаться недоторканими. Продовжити?');
-      if (!confirmed) return;
-
-      btnMigrateV2.disabled = true;
-      const originalText = btnMigrateV2.textContent;
-      btnMigrateV2.textContent = 'Оновлення...';
-
-      try {
-        await updateDoc(doc(db, "config", "published"), {
-          quests: defaultConfig.quests,
-          levels: defaultConfig.levels,
-          questWeeklyCap: defaultConfig.questWeeklyCap,
-          questMonthlyCap: defaultConfig.questMonthlyCap
-        });
-
-        if (appState.config) {
-          appState.config.quests = defaultConfig.quests;
-          appState.config.levels = defaultConfig.levels;
-          appState.config.questWeeklyCap = defaultConfig.questWeeklyCap;
-          appState.config.questMonthlyCap = defaultConfig.questMonthlyCap;
-        }
-
-        showToast('Базу успішно оновлено до v2.0!');
-      } catch (err) {
-        console.error('Помилка міграції бази:', err);
-        alert('Помилка оновлення бази: ' + err.message);
-      } finally {
-        btnMigrateV2.disabled = false;
-        btnMigrateV2.textContent = originalText;
-      }
-    });
   }
 }

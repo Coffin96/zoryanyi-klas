@@ -7,6 +7,7 @@ import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { validateQuest, getPreviousMonthKey, findNearestQuest } from '../src/engine/quests.js';
 import { defaultConfig } from '../src/data/default-config.js';
+import { renderQuests, getDisplayQuests } from '../src/student/quests.js';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -576,26 +577,109 @@ describe('Expanded Quests System (Stage 3)', () => {
       assert.strictEqual(nearest.priority, 1);
     });
 
-    test('firebase/seed/published.json та defaultConfig містять lifetime квести', () => {
+    test('firebase/seed/published.json та defaultConfig містять повну драбину lifetime квестів до 10 000 ✦', () => {
       const publishedPath = path.resolve(__dirname, '../firebase/seed/published.json');
       const published = JSON.parse(fs.readFileSync(publishedPath, 'utf8'));
 
+      const expectedLadder = [
+        { id: 'lifetime_50', target: 50, reward: 3 },
+        { id: 'lifetime_100', target: 100, reward: 5 },
+        { id: 'lifetime_250', target: 250, reward: 10 },
+        { id: 'lifetime_500', target: 500, reward: 15 },
+        { id: 'lifetime_1000', target: 1000, reward: 25 },
+        { id: 'lifetime_2000', target: 2000, reward: 40 },
+        { id: 'lifetime_3500', target: 3500, reward: 60 },
+        { id: 'lifetime_5000', target: 5000, reward: 80 },
+        { id: 'lifetime_7500', target: 7500, reward: 100 },
+        { id: 'lifetime_10000', target: 10000, reward: 150 },
+      ];
+
       const pubQuests = published.quests || [];
-      const pubL100 = pubQuests.find(q => q.id === 'lifetime_100');
-      assert.ok(pubL100, 'published.json повинен містити lifetime_100');
-      assert.strictEqual(pubL100.type, 'lifetime_milestone');
-      assert.strictEqual(pubL100.target, 100);
-      assert.strictEqual(pubL100.reward, 5);
-
-      const pubL50 = pubQuests.find(q => q.id === 'lifetime_50');
-      assert.ok(pubL50, 'published.json повинен містити lifetime_50');
-      assert.strictEqual(pubL50.type, 'lifetime_milestone');
-      assert.strictEqual(pubL50.target, 50);
-
       const defQuests = defaultConfig.quests || [];
-      const defL100 = defQuests.find(q => q.id === 'lifetime_100');
-      assert.ok(defL100, 'defaultConfig повинен містити lifetime_100');
-      assert.strictEqual(defL100.type, 'lifetime_milestone');
+
+      assert.strictEqual(pubQuests.filter(q => q.type === 'lifetime_milestone').length, 10);
+      assert.strictEqual(defQuests.filter(q => q.type === 'lifetime_milestone').length, 10);
+
+      for (const exp of expectedLadder) {
+        const pubQ = pubQuests.find(q => q.id === exp.id);
+        assert.ok(pubQ, `published.json повинен містити ${exp.id}`);
+        assert.strictEqual(pubQ.type, 'lifetime_milestone');
+        assert.strictEqual(pubQ.period, 'lifetime');
+        assert.strictEqual(pubQ.target, exp.target);
+        assert.strictEqual(pubQ.reward, exp.reward);
+
+        const defQ = defQuests.find(q => q.id === exp.id);
+        assert.ok(defQ, `defaultConfig повинен містити ${exp.id}`);
+        assert.strictEqual(defQ.type, 'lifetime_milestone');
+        assert.strictEqual(defQ.period, 'lifetime');
+        assert.strictEqual(defQ.target, exp.target);
+        assert.strictEqual(defQ.reward, exp.reward);
+      }
+    });
+
+    test('src/student/quests.js: щотижневий квест не вважається виконаним у новий тиждень за наявності лише p.stats.quests', () => {
+      const nowMs = Date.now();
+      const { week, month } = kyivParts(nowMs);
+      const dummyRoot = { innerHTML: '' };
+      
+      const p = emptyProfile();
+      p.stats.quests['knowledge_gatherer'] = 1; // виконано у минулих тижнях
+      p.counters[week] = { knowledge_gatherer: 0, questStars: 0 };
+      p.counters[month] = { questStars: 0 };
+
+      renderQuests(dummyRoot, { profile: p, config: defaultConfig });
+      
+      // Не повинен бути статус "Виконано ✓" для цього квесту
+      assert.ok(!dummyRoot.innerHTML.includes('Виконано ✓'), 'Щотижневий квест не повинен вважатися виконаним у понеділок через старі p.stats.quests');
+      assert.ok(dummyRoot.innerHTML.includes('Прогрес цього тижня:'), 'Повинен відображатися прогрес цього тижня');
+
+      // А тепер якщо в поточному тижні є виконання:
+      p.counters[week].knowledge_gatherer = 1;
+      p.counters[week].questStars = 3;
+      renderQuests(dummyRoot, { profile: p, config: defaultConfig });
+      assert.ok(dummyRoot.innerHTML.includes('Виконано ✓'), 'Квест повинен відображатися як виконаний тільки за наявності лічильника в поточному тижні');
+    });
+
+    test('getDisplayQuests / renderQuests: ступінчасте відображення показує лише перший незакритий lifetime квест', () => {
+      const activeQuests = (defaultConfig.quests || []).filter(q => q.active);
+      const lifetimeCount = activeQuests.filter(q => q.type === 'lifetime_milestone').length;
+      assert.strictEqual(lifetimeCount, 10, 'У конфігурації має бути 10 активних lifetime квестів');
+
+      // 1. Початковий стан: учень ще нічого не виконав
+      const p0 = emptyProfile();
+      const display0 = getDisplayQuests(activeQuests, p0);
+      const lifetimeInDisplay0 = display0.filter(q => q.type === 'lifetime_milestone');
+      assert.strictEqual(lifetimeInDisplay0.length, 1, 'Має показуватися рівно один lifetime квест');
+      assert.strictEqual(lifetimeInDisplay0[0].id, 'lifetime_50', 'Першим має показуватися lifetime_50');
+
+      // 2. Учень виконав lifetime_50 (або через counters.lifetime, або stats.quests)
+      const p1 = emptyProfile();
+      p1.stats.quests['lifetime_50'] = 1;
+      const display1 = getDisplayQuests(activeQuests, p1);
+      const lifetimeInDisplay1 = display1.filter(q => q.type === 'lifetime_milestone');
+      assert.strictEqual(lifetimeInDisplay1.length, 1);
+      assert.strictEqual(lifetimeInDisplay1[0].id, 'lifetime_100', 'Після закриття lifetime_50 відкривається lifetime_100');
+
+      // 3. Учень дійшов до 1000 зірок і закрив lifetime_50..lifetime_1000
+      const p2 = emptyProfile();
+      ['lifetime_50', 'lifetime_100', 'lifetime_250', 'lifetime_500', 'lifetime_1000'].forEach(id => {
+        p2.counters.lifetime = p2.counters.lifetime || {};
+        p2.counters.lifetime[id] = 1;
+      });
+      const display2 = getDisplayQuests(activeQuests, p2);
+      const lifetimeInDisplay2 = display2.filter(q => q.type === 'lifetime_milestone');
+      assert.strictEqual(lifetimeInDisplay2.length, 1);
+      assert.strictEqual(lifetimeInDisplay2[0].id, 'lifetime_2000', 'Наступним незакритим має бути lifetime_2000');
+
+      // 4. Усі квести накопичення виконані -> відображається останній (lifetime_10000)
+      const pMax = emptyProfile();
+      activeQuests.filter(q => q.type === 'lifetime_milestone').forEach(q => {
+        pMax.stats.quests[q.id] = 1;
+      });
+      const displayMax = getDisplayQuests(activeQuests, pMax);
+      const lifetimeInDisplayMax = displayMax.filter(q => q.type === 'lifetime_milestone');
+      assert.strictEqual(lifetimeInDisplayMax.length, 1);
+      assert.strictEqual(lifetimeInDisplayMax[0].id, 'lifetime_10000', 'Коли всі виконані, показується останній (lifetime_10000)');
     });
 
     test('src/student/home.js містить підпис загалом здобутих зірок', () => {

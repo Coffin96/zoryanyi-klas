@@ -5,10 +5,31 @@ import { renderScanner, stopScanner, startScanner } from './scanner.js';
 import { renderStudentPanel } from './student-panel.js';
 import { renderStudentList } from './student-list.js';
 import { renderAdmin } from './admin.js';
-import { doc, setDoc } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js";
+import { doc, setDoc, updateDoc } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js";
 import { db } from '../data/firebase.js';
 import { defaultConfig } from '../data/default-config.js';
 import { iconPrimogem, iconFiligreeDivider } from '../components/genshin-icons.js';
+
+let isSyncingQuests = false;
+export async function syncMissingQuests(currentConfig) {
+  if (!currentConfig || !Array.isArray(currentConfig.quests) || isSyncingQuests) return;
+  const existingIds = new Set(currentConfig.quests.map(q => q.id));
+  const missing = (defaultConfig.quests || []).filter(dq => !existingIds.has(dq.id));
+  
+  if (missing.length > 0) {
+    isSyncingQuests = true;
+    try {
+      console.log(`[SmartMerge] Знайдено ${missing.length} нових системних завдань. Тихо оновлюємо Firestore...`);
+      const updatedQuests = [...currentConfig.quests, ...missing];
+      await updateDoc(doc(db, "config", "published"), { quests: updatedQuests });
+      console.log(`[SmartMerge] Базу успішно доповнено новими квестами (${missing.map(m => m.id).join(', ')}).`);
+    } catch (e) {
+      console.error('[SmartMerge] Помилка синхронізації квестів:', e);
+    } finally {
+      isSyncingQuests = false;
+    }
+  }
+}
 
 export const appState = {
   user: null,
@@ -31,7 +52,11 @@ export function initApp() {
         appState.view = 'scanner';
       }
       listenConfig(
-        c => { appState.config = c; render(); },
+        c => { 
+          appState.config = c; 
+          syncMissingQuests(c);
+          render(); 
+        },
         e => { console.error('Config listen error:', e); render(); }
       );
       listenStock(

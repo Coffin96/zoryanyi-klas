@@ -41,6 +41,34 @@ export function renderNearestQuestBlock(p, c) {
     ? `${best.progress.toFixed(1)} / ${best.target}`
     : `${best.progress} / ${best.target}`;
 
+  if (best.isSecret || best.quest.secret) {
+    return `
+      <div id="nearest-quest-card" class="solo-system-card clickable-card" style="cursor: pointer;" title="Натисни, щоб перейти до квестів">
+        <div class="flex justify-between items-center" style="margin-bottom: 8px;">
+          <span class="system-badge">
+            <span style="font-size: 12px;">⚡</span> [СИСТЕМНЕ СПОВІЩЕННЯ: ТАЄМНИЙ КВЕСТ]
+          </span>
+          <span class="system-overdrive-badge">
+            ОВЕРДРАЙВ +${best.reward} ✦
+          </span>
+        </div>
+        <div style="font-weight: 800; font-size: 16px; color: #fff; margin-bottom: 3px; font-family: var(--font-fantasy);">
+          ${best.quest.title || best.quest.name}
+        </div>
+        <div style="font-size: 12px; color: #94a3b8; line-height: 1.35; margin-bottom: 10px;">
+          ${best.desc}
+        </div>
+        <div class="flex justify-between" style="font-size: 11px; color: var(--system-blue); margin-bottom: 4px;">
+          <span>Прогрес виконання:</span>
+          <span style="font-weight: 800;">${progText} (${best.percent}%)</span>
+        </div>
+        <div class="system-progress-track">
+          <div class="system-progress-fill" style="width: ${best.percent}%;"></div>
+        </div>
+      </div>
+    `;
+  }
+
   return `
     <div id="nearest-quest-card" class="parchment-card clickable-card" style="padding: 14px 16px; cursor: pointer; transition: transform 0.15s ease;" title="Натисни, щоб перейти до квестів">
       <div class="flex justify-between items-center" style="margin-bottom: 8px;">
