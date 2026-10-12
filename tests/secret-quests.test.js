@@ -235,7 +235,7 @@ describe('Secret Quests & Solo Leveling Overdrive System (Stage B)', () => {
       assert.strictEqual(weeklyMonthlyDisplayCount, baseCount, 'Кількість квестів не повинна подвоюватися');
     });
 
-    test('findNearestQuest та renderNearestQuestBlock: виділяє пробуджений секретний квест у стилі Solo Leveling', () => {
+    test('findNearestQuest та renderNearestQuestBlock: виділяє пробуджений секретний квест у стилі Genshin Astral', () => {
       const p = emptyProfile();
       p.counters[week] = { gradeCount: 8 };
 
@@ -245,10 +245,11 @@ describe('Secret Quests & Solo Leveling Overdrive System (Stage B)', () => {
       assert.strictEqual(nearest.quest.id, 'secret_academic_overdrive', 'Має обрати пробуджений Академічний штурм');
 
       const homePath = path.resolve(__dirname, '../src/student/home.js');
-      const homeSource = fs.readFileSync(homePath, 'utf8');
-      assert.ok(homeSource.includes('solo-system-card'), 'Головна картка повинна мати стиль solo-system-card');
-      assert.ok(homeSource.includes('[СИСТЕМНЕ СПОВІЩЕННЯ: ТАЄМНИЙ КВЕСТ]'), 'Повинен бути бейдж системного сповіщення');
-      assert.ok(homeSource.includes('ОВЕРДРАЙВ +${best.reward} ✦'), 'Повинен бути бейдж овердрайву');
+      const html = fs.readFileSync(homePath, 'utf8');
+      assert.ok(html.includes('genshin-astral-card'), 'Має містити клас genshin-astral-card');
+      assert.ok(html.includes('ТАЄМНЕ ДОРУЧЕННЯ'), 'Має містити бейдж ТАЄМНЕ ДОРУЧЕННЯ');
+      assert.ok(!html.includes('solo-system-card'), 'Не повинно бути застарілого класу solo-system-card');
+      assert.ok(!html.includes('СИСТЕМНЕ СПОВІЩЕННЯ'), 'Не повинно бути тексту СИСТЕМНЕ СПОВІЩЕННЯ');
     });
   });
 });
