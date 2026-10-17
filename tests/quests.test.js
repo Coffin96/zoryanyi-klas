@@ -677,9 +677,9 @@ describe('Expanded Quests System (Stage 3)', () => {
 
       // А тепер якщо в поточному тижні є виконання:
       p.counters[week].knowledge_gatherer = 1;
-      p.counters[week].questStars = 3;
+      p.counters[week].questStars = 1;
       renderQuests(dummyRoot, { profile: p, config: defaultConfig });
-      assert.ok(dummyRoot.innerHTML.includes('Виконано ✓'), 'Квест повинен відображатися як виконаний тільки за наявності лічильника в поточному тижні');
+      assert.ok(!dummyRoot.innerHTML.includes('Збирач знань'), 'Виконаний щотижневий квест без умов туману повинен зникати зі списку');
     });
 
     test('getDisplayQuests / renderQuests: ступінчасте відображення показує лише перший незакритий lifetime квест', () => {

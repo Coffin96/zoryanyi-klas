@@ -504,7 +504,7 @@ export function getQuestSecretState(p, quest, allQuests = [], context = {}) {
       };
     }
 
-    if (isDone && revealCurrent < revealTarget) {
+    if (isDone && revealCurrent >= baseTarget && revealCurrent < revealTarget) {
       let stage = 'white';
       if (Number.isInteger(baseTarget)) {
         if (revealCurrent <= baseTarget) {

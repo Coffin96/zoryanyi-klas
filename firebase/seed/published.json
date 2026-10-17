@@ -28,11 +28,11 @@
     { "id": "priv_pc", "name": "10 хв творчого часу за комп'ютером", "icon": "💻", "category": "Привілей", "price": 8, "active": true, "order": 5, "unitCost": 0 }
   ],
   "quests": [
-    { "id": "knowledge_gatherer", "type": "weekly_count", "title": "Збирач знань", "icon": "📚", "period": "weekly", "active": true, "reward": 2, "perWeek": 1, "params": { "count": 4 }, "desc": "Отримай 4 будь-які оцінки протягом тижня" },
-    { "id": "sequence", "type": "consecutive", "title": "Послідовність", "icon": "🎯", "period": "weekly", "active": true, "reward": 2, "perWeek": 1, "params": { "minGrade": 7, "length": 3 }, "desc": "3 оцінки від 7 балів поспіль" },
-    { "id": "brilliant_result", "type": "target_grade", "title": "Блискучий результат", "icon": "✨", "period": "weekly", "active": true, "reward": 3, "perWeek": 2, "params": { "grade": 12 }, "desc": "Отримай оцінку 12 (до 2 разів на тиждень)" },
-    { "id": "steady_step", "type": "monthly_growth", "title": "Впевнений крок", "icon": "📈", "period": "monthly", "active": true, "reward": 6, "perMonth": 1, "params": { "minTotalGrades": 10 }, "desc": "Середній бал місяця вищий за попередній (від 10 оцінок)" },
-    { "id": "holding_height", "type": "monthly_average", "title": "Утримання висоти", "icon": "👑", "period": "monthly", "active": true, "reward": 8, "perMonth": 1, "params": { "minAverage": 10 }, "desc": "Середній бал понад 10 протягом місяця" },
+    { "id": "knowledge_gatherer", "type": "weekly_count", "title": "Збирач знань", "icon": "📚", "period": "weekly", "active": true, "reward": 1, "perWeek": 1, "params": { "count": 4 }, "desc": "Отримай 4 будь-які оцінки протягом тижня" },
+    { "id": "sequence", "type": "consecutive", "title": "Послідовність", "icon": "🎯", "period": "weekly", "active": true, "reward": 1, "perWeek": 1, "params": { "minGrade": 7, "length": 3 }, "desc": "3 оцінки від 7 балів поспіль" },
+    { "id": "brilliant_result", "type": "target_grade", "title": "Блискучий результат", "icon": "✨", "period": "weekly", "active": true, "reward": 1, "perWeek": 2, "params": { "grade": 12 }, "desc": "Отримай оцінку 12 (до 2 разів на тиждень)" },
+    { "id": "steady_step", "type": "monthly_growth", "title": "Впевнений крок", "icon": "📈", "period": "monthly", "active": true, "reward": 3, "perMonth": 1, "params": { "minTotalGrades": 10 }, "desc": "Середній бал місяця вищий за попередній (від 10 оцінок)" },
+    { "id": "holding_height", "type": "monthly_average", "title": "Утримання висоти", "icon": "👑", "period": "monthly", "active": true, "reward": 3, "perMonth": 1, "params": { "minAverage": 10 }, "desc": "Середній бал понад 10 протягом місяця" },
     {
       "id": "secret_daily_hot",
       "type": "daily_hot",
@@ -47,7 +47,7 @@
     {
       "id": "secret_academic_overdrive",
       "type": "weekly_count",
-      "title": "Академічний штурм",
+      "title": "Зарядний тиждень",
       "icon": "🌌",
       "period": "weekly",
       "active": true,
@@ -56,13 +56,13 @@
       "parentQuestId": "knowledge_gatherer",
       "unlockAt": 7,
       "params": { "count": 10 },
-      "reward": 3,
+      "reward": 1,
       "desc": "Здобудь сумарно 10 оцінок протягом одного тижня"
     },
     {
       "id": "secret_shadow_streak",
       "type": "consecutive",
-      "title": "Тіньова воля",
+      "title": "Стабільність",
       "icon": "🗡️",
       "period": "weekly",
       "active": true,
@@ -71,13 +71,13 @@
       "parentQuestId": "sequence",
       "unlockAt": 4,
       "params": { "minGrade": 8, "length": 5 },
-      "reward": 3,
+      "reward": 2,
       "desc": "5 оцінок від 8 балів поспіль"
     },
     {
       "id": "secret_monarch_hat_trick",
       "type": "target_grade",
-      "title": "Пробудження Монарха",
+      "title": "Зірковий хет-трик",
       "icon": "👑",
       "period": "weekly",
       "active": true,
@@ -86,13 +86,13 @@
       "parentQuestId": "brilliant_result",
       "unlockAt": 2,
       "params": { "grade": 12, "targetCount": 3 },
-      "reward": 4,
+      "reward": 2,
       "desc": "Отримай третю оцінку 12 за один тиждень"
     },
     {
       "id": "secret_olympus_eleven",
       "type": "monthly_average",
-      "title": "Олімп Одинадцяти",
+      "title": "Золотий стандарт",
       "icon": "🏛️",
       "period": "monthly",
       "active": true,
@@ -101,7 +101,7 @@
       "parentQuestId": "holding_height",
       "unlockAt": 10.5,
       "params": { "minAverage": 11.2, "minMonthlyGrades": 14 },
-      "reward": 8,
+      "reward": 3,
       "desc": "Утримай середній бал від 11.2 (від 14 оцінок за місяць)"
     },
     { "id": "lifetime_50", "type": "lifetime_milestone", "title": "Перший ювілей", "icon": "⭐", "period": "lifetime", "active": true, "reward": 3, "target": 50, "limit": 1, "description": "Назбирай 50 зірочок за весь час", "desc": "Назбирай 50 зірочок за весь час" },

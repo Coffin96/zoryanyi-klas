@@ -116,13 +116,13 @@ export function renderActiveEventBlock(c) {
   }
 
   return `
-    <div class="parchment-card" style="padding: 14px 16px; border: 1.5px solid var(--gold-deep); background: radial-gradient(circle at top right, rgba(229,195,120,0.22), rgba(246,238,222,0.95)); box-shadow: 0 4px 14px rgba(0,0,0,0.15), 0 0 12px rgba(229,195,120,0.3);">
+    <div class="parchment-card" style="padding: 14px 16px; background: var(--surface-parchment); border: 1.5px solid var(--gold-border); box-shadow: 0 4px 16px rgba(0,0,0,0.25), 0 0 10px rgba(229, 195, 120, 0.25); margin-bottom: var(--spacing-sm);">
       <div class="flex justify-between items-center" style="margin-bottom: 8px;">
         <div class="flex items-center gap-xs">
-          <span class="badge-tag" style="background: rgba(207,67,67,0.15); color: #8b2626; border: 1px solid rgba(207,67,67,0.4); font-weight: 800; font-size: 11px;">
+          <span class="badge-tag" style="color: var(--gold-deep); background: rgba(229, 195, 120, 0.2); border: 1px solid var(--gold-deep); font-weight: 800; font-size: 11px;">
             СПЕЦІАЛЬНА ПОДІЯ
           </span>
-          <span style="font-size: 12px; color: var(--text-parchment-muted);">Одноразовий квест</span>
+          <span style="color: var(--text-parchment-muted); font-size: 12px;">Одноразовий квест</span>
         </div>
         <div class="badge-gold" style="font-size: 14px; font-weight: 800; padding: 2px 10px; border-radius: 12px;">
           +${event.reward} ✦
@@ -137,7 +137,7 @@ export function renderActiveEventBlock(c) {
           <div style="font-weight: 800; font-size: 16px; color: var(--text-parchment); line-height: 1.2;">
             ${event.name}
           </div>
-          <div style="font-size: 12px; color: var(--text-parchment-muted); margin-top: 2px;">
+          <div style="color: var(--text-parchment-muted); font-size: 12px; margin-top: 2px;">
             Особливе випробування для всього класу
           </div>
         </div>

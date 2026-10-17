@@ -20,6 +20,12 @@ export function getDisplayQuests(quests, p = {}, context = {}) {
   const baseQuests = quests.filter(q => !q.secret);
   const result = [];
 
+  const nowMs = context.nowMs ?? Date.now();
+  const { month, week, ymd } = kyivParts(nowMs);
+  const targetWeek = context.week ?? week;
+  const targetMonth = context.month ?? month;
+  const targetDay = context.day ?? ymd;
+
   for (const q of baseQuests) {
     const isLife = q.type === 'lifetime_milestone' || q.period === 'lifetime';
     if (isLife) {
@@ -28,16 +34,53 @@ export function getDisplayQuests(quests, p = {}, context = {}) {
       } else if (lifetimeQuests.length > 0 && q.id !== lifetimeQuests[lifetimeQuests.length - 1].id) {
         continue;
       }
+      result.push(q);
+      continue;
     }
+
+    const isWeekly = q.period === 'week' || q.period === 'weekly' || q.perWeek != null;
+    const isDaily = q.period === 'daily';
+    const counters = isDaily ? (p.counters?.[targetDay] || {}) : (isWeekly ? (p.counters?.[targetWeek] || {}) : (p.counters?.[targetMonth] || {}));
+    const limit = isDaily ? (q.limit ?? 1) : (isWeekly ? (q.perWeek ?? q.limit ?? 1) : (q.perMonth ?? q.limit ?? 1));
+    const timesAwarded = counters[q.id] || 0;
+    const isDone = timesAwarded >= limit;
 
     const sq = quests.find(x => x.parentQuestId === q.id);
     if (sq) {
-      const secState = getQuestSecretState(p, sq, quests, context);
-      if (!secState.isLocked && secState.isRevealed) {
-        result.push(sq);
+      const secState = getQuestSecretState(p, q, quests, context);
+      if (secState.state === 'awakened') {
+        const sqCounters = isWeekly ? (p.counters?.[targetWeek] || {}) : (p.counters?.[targetMonth] || {});
+        const sqLimit = isWeekly ? (sq.perWeek ?? sq.limit ?? 1) : (sq.perMonth ?? sq.limit ?? 1);
+        const sqTimesAwarded = sqCounters[sq.id] || 0;
+        const sqVal = validateQuest(p, sq, context);
+        const isSqDone = sqTimesAwarded >= sqLimit || (sqVal && (sqVal.timesAwarded >= sqVal.limit || sqVal.completed));
+        if (!isSqDone) {
+          result.push(sq);
+        }
         continue;
       }
+
+      if (secState.state === 'fog') {
+        result.push(q);
+        continue;
+      }
+
+      // Якщо стан normal або не fog/awakened:
+      // Якщо звичайний квест виконано — він зникає зі списку
+      if (isDone) {
+        continue;
+      }
+
+      result.push(q);
+      continue;
     }
+
+    // Якщо немає секретного супутника:
+    // Якщо виконано — зникає зі списку
+    if (isDone) {
+      continue;
+    }
+
     result.push(q);
   }
 
@@ -121,7 +164,17 @@ export function renderQuests(root, state) {
 
       <!-- Список завдань у стилі Книги Шукача Пригод -->
       <div class="flex flex-col gap-sm">
-        ${displayQuests.map(quest => {
+        ${displayQuests.length === 0 ? `
+          <div class="parchment-card text-center" style="padding: 24px 16px; border: 1.5px dashed var(--gold-border);">
+            <div style="font-size: 32px; margin-bottom: 6px;">🌟</div>
+            <div style="font-weight: 700; font-size: 16px; color: var(--text-parchment); margin-bottom: 4px;">
+              Усі доступні квести виконано!
+            </div>
+            <div style="font-size: 13px; color: var(--text-parchment-muted);">
+              Відпочинь або завітай наступного періоду за новими завданнями.
+            </div>
+          </div>
+        ` : displayQuests.map(quest => {
           // Якщо це пробуджений секретний квест
           if (quest.secret) {
             const secState = getQuestSecretState(p, quest, quests, { nowMs, month, week });

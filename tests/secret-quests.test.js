@@ -122,10 +122,10 @@ describe('Secret Quests & Solo Leveling Overdrive System (Stage B)', () => {
     });
   });
 
-  describe('3. Виконання секретного квесту: при 10 оцінках нараховує +3 ✦', () => {
+  describe('3. Виконання секретного квесту: при 10 оцінках нараховує +1 ✦', () => {
     const t = Date.parse('2026-10-12T10:00:00Z');
 
-    test('При отриманні 10 оцінок за тиждень secret_academic_overdrive нараховує +3 ✦', () => {
+    test('При отриманні 10 оцінок за тиждень secret_academic_overdrive нараховує +1 ✦', () => {
       let p = emptyProfile();
       // Зараховуємо перші 9 оцінок (по 10 балів)
       let res = creditGrades(p, [10, 10, 10, 10, 10, 10, 10, 10, 10], cfg, t);
@@ -137,7 +137,7 @@ describe('Secret Quests & Solo Leveling Overdrive System (Stage B)', () => {
 
       const overdriveEvent = res.events.find(e => e.quest === 'secret_academic_overdrive');
       assert.ok(overdriveEvent, 'Подія секретного квесту повинна спрацювати');
-      assert.strictEqual(overdriveEvent.delta, 3, 'Нагорода за Академічний штурм повинна складати 3 ✦');
+      assert.strictEqual(overdriveEvent.delta, 1, 'Нагорода за Зарядний тиждень повинна складати 1 ✦');
     });
   });
 
@@ -145,19 +145,19 @@ describe('Secret Quests & Solo Leveling Overdrive System (Stage B)', () => {
     const t = Date.parse('2026-10-12T10:00:00Z');
     const { week, month } = kyivParts(t);
 
-    test('Оскільки капи знято (questWeeklyCap: 999), і звичайний квест «Збирач знань» (+2 ✦), і секретний «Академічний штурм» (+3 ✦) нараховуються безперешкодно у повному обсязі', () => {
+    test('Оскільки капи знято (questWeeklyCap: 999), і звичайний квест «Збирач знань» (+1 ✦), і секретний «Зарядний тиждень» (+1 ✦) нараховуються безперешкодно у повному обсязі', () => {
       const p = emptyProfile();
       p.counters[week] = { questStars: 15, gradeCount: 9 };
 
       const events = [];
-      // Звичайний тижневий квест з нагородою 2 ✦
+      // Звичайний тижневий квест з нагородою 1 ✦
       const normalDelta = award(p, knowledgeQuest, cfg, month, events, week, t);
-      assert.strictEqual(normalDelta, 2, 'Звичайний квест повинен нараховуватися у повному обсязі (+2 ✦)');
+      assert.strictEqual(normalDelta, 1, 'Звичайний квест повинен нараховуватися у повному обсязі (+1 ✦)');
 
-      // Секретний овердрайв-квест з нагородою 3 ✦
+      // Секретний овердрайв-квест з нагородою 1 ✦
       const secretDelta = award(p, secretOverdrive, cfg, month, events, week, t);
-      assert.strictEqual(secretDelta, 3, 'Секретний овердрайв повинен нараховуватися у повному обсязі (+3 ✦)');
-      assert.strictEqual(p.counters[week].questStars, 20, 'Загальна сума зірок за тиждень повинна зрости до 20 (15 + 2 + 3)');
+      assert.strictEqual(secretDelta, 1, 'Секретний овердрайв повинен нараховуватися у повному обсязі (+1 ✦)');
+      assert.strictEqual(p.counters[week].questStars, 17, 'Загальна сума зірок за тиждень повинна зрости до 17 (15 + 1 + 1)');
     });
   });
 
@@ -203,7 +203,7 @@ describe('Secret Quests & Solo Leveling Overdrive System (Stage B)', () => {
       assert.ok(root.innerHTML.includes('fog-twilight'), 'Має бути клас fog-twilight');
       assert.ok(root.innerHTML.includes('Розвіювання туману: <b>5 / 7</b>'));
       // Заблокований секретний квест не повинен мати картку
-      assert.ok(!root.innerHTML.includes('Академічний штурм'));
+      assert.ok(!root.innerHTML.includes('Зарядний тиждень'));
     });
 
     test('renderQuests: пробуджений секретний квест рендериться у стилі genshin-astral-card', () => {
@@ -217,8 +217,8 @@ describe('Secret Quests & Solo Leveling Overdrive System (Stage B)', () => {
       assert.ok(root.innerHTML.includes('genshin-astral-card'), 'Має бути клас genshin-astral-card');
       assert.ok(root.innerHTML.includes('badge-astral'), 'Має бути клас badge-astral');
       assert.ok(root.innerHTML.includes('✦ ТАЄМНЕ ДОРУЧЕННЯ'), 'Повинен бути бейдж таємного доручення');
-      assert.ok(root.innerHTML.includes('+3 ✦'), 'Повинна бути нагорода +3 ✦');
-      assert.ok(root.innerHTML.includes('Академічний штурм'));
+      assert.ok(root.innerHTML.includes('+1 ✦'), 'Повинна бути нагорода +1 ✦');
+      assert.ok(root.innerHTML.includes('Зарядний тиждень'));
       assert.ok(!root.innerHTML.includes('[СИСТЕМНЕ СПОВІЩЕННЯ]'), 'Не повинно бути старого сай-фай тексту');
       assert.ok(!root.innerHTML.includes('ОВЕРДРАЙВ'), 'Не повинно бути старого напису ОВЕРДРАЙВ');
     });
@@ -242,7 +242,7 @@ describe('Secret Quests & Solo Leveling Overdrive System (Stage B)', () => {
       const nearest = findNearestQuest(p, cfg, t);
       assert.ok(nearest, 'Повинен знайти найближчий квест');
       assert.strictEqual(nearest.isSecret, true, 'Квест повинен бути позначений як секретний');
-      assert.strictEqual(nearest.quest.id, 'secret_academic_overdrive', 'Має обрати пробуджений Академічний штурм');
+      assert.strictEqual(nearest.quest.id, 'secret_academic_overdrive', 'Має обрати пробуджений Зарядний тиждень');
 
       const homePath = path.resolve(__dirname, '../src/student/home.js');
       const html = fs.readFileSync(homePath, 'utf8');
@@ -250,6 +250,65 @@ describe('Secret Quests & Solo Leveling Overdrive System (Stage B)', () => {
       assert.ok(html.includes('ТАЄМНЕ ДОРУЧЕННЯ'), 'Має містити бейдж ТАЄМНЕ ДОРУЧЕННЯ');
       assert.ok(!html.includes('solo-system-card'), 'Не повинно бути застарілого класу solo-system-card');
       assert.ok(!html.includes('СИСТЕМНЕ СПОВІЩЕННЯ'), 'Не повинно бути тексту СИСТЕМНЕ СПОВІЩЕННЯ');
+    });
+  });
+
+  describe('7. Зникнення виконаних завдань та заглушка при повному виконанні', () => {
+    const t = Date.parse('2026-10-12T10:00:00Z');
+    const { week, month } = kyivParts(t);
+
+    test('Звичайний квест без секретного супутника (steady_step) після виконання зникає зі списку', () => {
+      const p = emptyProfile();
+      p.counters[month] = { steady_step: 1 };
+
+      const display = getDisplayQuests(cfg.quests, p, { nowMs: t });
+      assert.ok(!display.some(q => q.id === 'steady_step'), 'Виконаний steady_step повинен зникнути зі списку');
+    });
+
+    test('Виконаний звичайний квест із секретним супутником без умов туману зникає зі списку', () => {
+      const p = emptyProfile();
+      p.counters[week] = { knowledge_gatherer: 1, gradeCount: 0 };
+
+      const display = getDisplayQuests(cfg.quests, p, { nowMs: t });
+      assert.ok(!display.some(q => q.id === 'knowledge_gatherer'), 'knowledge_gatherer без туману повинен зникнути');
+      assert.ok(!display.some(q => q.id === 'secret_academic_overdrive'), 'Заблокований секретний квест не повинен з\'являтися');
+    });
+
+    test('Секретний квест після виконання (timesAwarded >= limit) зникає зі списку', () => {
+      const p = emptyProfile();
+      p.counters[week] = { gradeCount: 10, secret_academic_overdrive: 1, knowledge_gatherer: 1 };
+
+      const display = getDisplayQuests(cfg.quests, p, { nowMs: t });
+      assert.ok(!display.some(q => q.id === 'secret_academic_overdrive'), 'Виконаний secret_academic_overdrive повинен зникнути');
+      assert.ok(!display.some(q => q.id === 'knowledge_gatherer'), 'Батьківський квест також повинен бути прихований');
+    });
+
+    test('Якщо всі доступні квести виконано, renderQuests відображає заглушку', () => {
+      const p = emptyProfile();
+      // Закриваємо всі квести
+      p.counters[week] = {
+        knowledge_gatherer: 1,
+        sequence: 1,
+        brilliant_result: 2,
+        secret_academic_overdrive: 1,
+        secret_shadow_streak: 1,
+        secret_monarch_hat_trick: 1
+      };
+      p.counters[month] = {
+        steady_step: 1,
+        holding_height: 1,
+        secret_olympus_eleven: 1
+      };
+      // Закриваємо всі lifetime квести
+      for (const q of cfg.quests.filter(q => q.type === 'lifetime_milestone')) {
+        p.stats.quests[q.id] = 1;
+      }
+
+      const root = { innerHTML: '' };
+      // Для порожнього списку (displayQuests = [])
+      const emptyQuestsConfig = { quests: [] };
+      renderQuests(root, { profile: p, config: emptyQuestsConfig });
+      assert.ok(root.innerHTML.includes('Усі доступні квести виконано!'), 'Має відображатися заглушка при відсутності активних квестів');
     });
   });
 });
