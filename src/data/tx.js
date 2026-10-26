@@ -132,7 +132,8 @@ export async function redeem(uuid, opId, cfg, itemObj, qty = 1) {
         return { ok: false, reason: 'Розпродано' };
       }
     }
-    const res = engineRedeem(p, shopItem, qty, c, nowMs, stock);
+    const effectiveStock = (typeof shopItem.stock === 'number') ? stock : {};
+    const res = engineRedeem(p, shopItem, qty, c, nowMs, effectiveStock);
     if (!res.ok) {
       if (res.reason === 'out-of-stock') return { ok: false, reason: 'Розпродано' };
       return res;

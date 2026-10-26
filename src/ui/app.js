@@ -157,7 +157,7 @@ function render() {
         btn.textContent = 'Збереження...';
         try {
           await setDoc(doc(db, "config", "published"), defaultConfig);
-          await setDoc(doc(db, "config", "stock"), { items: { tartlet: 24 } });
+          await setDoc(doc(db, "config", "stock"), { items: {} });
           showToast('Конфігурацію успішно збережено!');
         } catch (err) {
           console.error(err);

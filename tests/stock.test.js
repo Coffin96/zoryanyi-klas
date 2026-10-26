@@ -25,22 +25,23 @@ const emptyProfile = (balance = 50) => ({
 
 describe('Global Stock Management Tests (Stage 5)', () => {
   describe('1. Очищення лімітів та перевірка конфігурації', () => {
-    test('defaultConfig: жоден товар не має поля limits', () => {
+    test('defaultConfig: товари за замовчуванням не мають limits та не мають stock (безлімітні)', () => {
       const shop = defaultConfig.shop || [];
       assert.ok(shop.length > 0, 'Магазин повинен містити товари');
       for (const item of shop) {
         assert.strictEqual(item.limits, undefined, `Товар "${item.name}" не повинен мати поля limits`);
+        assert.strictEqual(item.stock, undefined, `Товар "${item.name}" не повинен мати stock за замовчуванням`);
       }
     });
 
-    test('defaultConfig: тарталетка має stock === 3', () => {
+    test('defaultConfig: тарталетка безлімітна за замовчуванням (не має stock та limits)', () => {
       const tartlet = (defaultConfig.shop || []).find(i => i.id === 'tartlet');
       assert.ok(tartlet, 'Тарталетка повинна бути в конфігурації');
-      assert.strictEqual(tartlet.stock, 3, 'Поле stock у тарталетки має дорівнювати 3');
+      assert.strictEqual(tartlet.stock, undefined, 'Тарталетка не повинна мати stock за замовчуванням');
       assert.strictEqual(tartlet.limits, undefined, 'Тарталетка не повинна мати limits');
     });
 
-    test('firebase/seed/published.json: перевірка очищення limits та додавання stock: 3', () => {
+    test('firebase/seed/published.json: товари за замовчуванням не мають limits та не мають stock (безлімітні)', () => {
       const publishedPath = path.resolve(__dirname, '../firebase/seed/published.json');
       const raw = fs.readFileSync(publishedPath, 'utf8');
       const published = JSON.parse(raw);
@@ -50,11 +51,13 @@ describe('Global Stock Management Tests (Stage 5)', () => {
 
       for (const item of shop) {
         assert.strictEqual(item.limits, undefined, `Товар "${item.name}" у published.json не повинен мати limits`);
+        assert.strictEqual(item.stock, undefined, `Товар "${item.name}" у published.json не повинен мати stock`);
       }
 
       const tartlet = shop.find(i => i.id === 'tartlet');
       assert.ok(tartlet, 'Тарталетка має бути у published.json');
-      assert.strictEqual(tartlet.stock, 3, 'Тарталетка у published.json повинна мати stock: 3');
+      assert.strictEqual(tartlet.stock, undefined, 'Тарталетка у published.json не повинна мати stock');
+      assert.strictEqual(tartlet.limits, undefined, 'Тарталетка у published.json не повинна мати limits');
     });
   });
 

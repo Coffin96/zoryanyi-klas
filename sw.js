@@ -1,4 +1,4 @@
-const CACHE_NAME = 'zoryanyi-klas-v10';
+const CACHE_NAME = 'zoryanyi-klas-v11';
 const ASSETS = [
   './',
   './index.html',

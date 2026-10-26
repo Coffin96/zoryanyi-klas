@@ -1,7 +1,7 @@
 import { navigate, appState, showToast } from './app.js';
 import { getActiveProfiles } from '../data/repo.js';
 import { db } from '../data/firebase.js';
-import { doc, writeBatch, updateDoc } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js";
+import { doc, writeBatch, updateDoc, setDoc } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js";
 import { generateQRUrl } from '../engine/qr-protocol.js';
 import { renderBudgetSection } from './budget.js';
 import { renderOpsSection } from './ops.js';
@@ -316,6 +316,15 @@ export async function renderAdmin(root) {
       await updateDoc(doc(db, "config", "published"), {
         shop: shopItems
       });
+
+      const activeStockItems = {};
+      shopItems.forEach(item => {
+        if (typeof item.stock === 'number') {
+          activeStockItems[item.id] = item.stock;
+        }
+      });
+      await setDoc(doc(db, "config", "stock"), { items: activeStockItems });
+
       // Оновити глобальний стан
       if (appState.config) {
         appState.config.shop = shopItems;

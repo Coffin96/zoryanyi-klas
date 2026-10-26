@@ -188,7 +188,7 @@ describe('Secret Quests & Solo Leveling Overdrive System (Stage B)', () => {
   });
 
   describe('6. Рендеринг та UI-компоненти Solo Leveling & Туману', () => {
-    const t = Date.parse('2026-10-12T10:00:00Z');
+    const t = Date.now();
     const { week } = kyivParts(t);
 
     test('renderQuests: заблоковані секретні квести не показуються, при тумані рендериться quest-fog-overlay', () => {
